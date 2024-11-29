@@ -1,0 +1,452 @@
+openapi: 3.0.3
+info:
+  title: Gofemart Rewards API
+  description: |-
+    Накопительная система лояльности «Гофермарт» должна предоставлять следующие HTTP-хендлеры:
+    - `POST /api/user/register` — регистрация пользователя;
+    - `POST /api/user/login` — аутентификация пользователя;
+    - `POST /api/user/orders` — загрузка пользователем номера заказа для расчёта;
+    - `GET /api/user/orders` — получение списка загруженных пользователем номеров заказов, статусов их обработки и информации о начислениях;
+    - `GET /api/user/balance` — получение текущего баланса счёта баллов лояльности пользователя;
+    - `POST /api/user/balance/withdraw` — запрос на списание баллов с накопительного счёта в счёт оплаты нового заказа;
+    - `GET /api/user/withdrawals` — получение информации о выводе средств с накопительного счёта пользователем.
+  version: 1.0.0
+servers:
+  - url: localhost:8080
+tags:
+  - name: user
+    description: Operations about user
+  - name: orders
+    description: Access to orders
+  - name: balance
+    description: Balance operations
+paths:
+  /api/user/register:
+    post:
+      tags:
+        - user
+      summary: Register user
+      description: |
+        ### Регистрация пользователя
+        **Хендлер**: `POST /api/user/register`
+        
+        Регистрация производится по паре логин/пароль. Каждый логин должен быть уникальным.
+        
+        После успешной регистрации должна происходить автоматическая аутентификация пользователя.
+        
+        Для передачи аутентификационных данных используйте механизм cookies или HTTP-заголовок Authorization.
+        
+        Формат запроса:
+        ```
+        POST /api/user/register HTTP/1.1
+        Content-Type: application/json
+        ...
+        {
+            "login": "<login>",
+            "password": "<password>"
+        } 
+        ```
+        Возможные коды ответа:
+        - 200 — пользователь успешно зарегистрирован и аутентифицирован;
+        - 400 — неверный формат запроса;
+        - 409 — логин уже занят;
+        - 500 — внутренняя ошибка сервера.
+      operationId: createUser
+      requestBody:
+        description: Created user object
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                  example: theUser
+                password:
+                  type: string
+                  example: '12345'
+      responses:
+        '200':
+          description: successful operation
+          headers:
+            X-Expires-After:
+              description: date in UTC when token expires
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Bad request
+        '409':
+          description: user already exist
+        '500':
+          description: server error 
+  /api/user/login:
+    post:
+      tags:
+        - user
+      summary: Logs user into the system
+      description: |
+        ### Аутентификация пользователя
+        
+        **Хендлер**: `POST /api/user/login`
+        
+        Аутентификация производится по паре логин/пароль.
+        Для передачи аутентификационных данных используйте механизм cookies или HTTP-заголовок Authorization.
+        
+        Формат запроса:
+        
+        ```
+        POST /api/user/login HTTP/1.1
+        Content-Type: application/json
+        ...
+        {
+            "login": "<login>",
+            "password": "<password>"
+        }
+        ```
+        
+        Возможные коды ответа:
+        - 200 — пользователь успешно аутентифицирован;
+        - 400 — неверный формат запроса;
+        - 401 — неверная пара логин/пароль;
+        - 500 — внутренняя ошибка сервера.
+      operationId: loginUser
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                login:
+                  type: string
+                  example: theUser
+                password:
+                  type: string
+                  example: '12345'
+      responses:
+        '200':
+          description: successful operation
+          headers:
+            X-Expires-After:
+              description: date in UTC when token expires
+              schema:
+                type: string
+                format: date-time
+          content:
+            application/json:
+              schema:
+                type: string
+        '400':
+          description: Invalid username/password supplied
+        '401':
+          description: wrong user-pass
+        '500':
+          description: server error 
+  /api/user/orders:
+    post:
+      tags:
+        - orders
+      summary: Загрузка номера заказа
+      description: |
+        ### Загрузка номера заказа
+        
+        **Хендлер**: `POST /api/user/orders`
+        
+        Хендлер доступен только аутентифицированным пользователям. Номером заказа является последовательность цифр произвольной длины.
+        
+        Номер заказа может быть проверен на корректность ввода с помощью алгоритма Луна.
+        
+        **Формат запроса**:
+        ```
+        POST /api/user/orders HTTP/1.1
+        Content-Type: text/plain
+        ...
+        12345678903
+        ```
+        Возможные коды ответа:
+        - 200 — номер заказа уже был загружен этим пользователем;
+        - 202 — новый номер заказа принят в обработку;
+        - 400 — неверный формат запроса;
+        - 401 — пользователь не аутентифицирован;
+        - 409 — номер заказа уже был загружен другим пользователем;
+        - 422 — неверный формат номера заказа;
+        - 500 — внутренняя ошибка сервера.
+      operationId: orderAccept
+      requestBody:
+        content:
+          text/plain:
+            schema:
+              type: integer
+      responses:
+        '200':
+          description: order already accepted
+        '202':
+          description: Order accepted to execution
+        '400':
+          description: bad request
+        '401':
+          description: authentication error
+        '409':
+          description: Order accepted by another user
+        '422':
+          description: Bad order format
+        '500':
+          description: server error
+      security: 
+        - bearerAuth: []
+        
+    get:
+      tags:
+        - orders
+      summary: Получение списка загруженных номеров заказов
+      description: |
+        ### Получение списка загруженных номеров заказов
+        
+        **Хендлер**: `GET /api/user/orders`
+        
+        Хендлер доступен только авторизованному пользователю. Номера заказа в выдаче должны быть отсортированы по времени загрузки от самых новых к самым старым. Формат даты — RFC3339.
+        
+        Доступные статусы обработки расчётов:
+        - `NEW` — заказ загружен в систему, но не попал в обработку;
+        - `PROCESSING` — вознаграждение за заказ рассчитывается;
+        - `INVALID` — система расчёта вознаграждений отказала в расчёте;
+        - `PROCESSED` — данные по заказу проверены и информация о расчёте успешно получена.
+        
+        Формат запроса:
+        ```
+        GET /api/user/orders HTTP/1.1
+        Content-Length: 0 
+        ```
+        Возможные коды ответа:
+        - 200 — успешная обработка запроса.
+          
+          Формат ответа:
+          ```
+          200 OK HTTP/1.1
+          Content-Type: application/json
+          ...
+          [
+              {
+                  "number": "9278923470",
+                  "status": "PROCESSED",
+                  "accrual": 500,
+                  "uploaded_at": "2020-12-10T15:15:45+03:00"
+              },
+              {
+                  "number": "12345678903",
+                  "status": "PROCESSING",
+                  "uploaded_at": "2020-12-10T15:12:01+03:00"
+              },
+              {
+                  "number": "346436439",
+                  "status": "INVALID",
+                  "uploaded_at": "2020-12-09T16:09:53+03:00"
+              }
+          ]
+          ```
+           
+        - 204 — нет данных для ответа.
+        - 401 — пользователь не авторизован.
+        - 500 — внутренняя ошибка сервера.
+      operationId: orderList
+      responses:
+        '200':
+          description: Success
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  number:
+                    type: integer
+                  status:
+                    type: string
+                    enum: 
+                      - NEW
+                      - PROCESSING
+                      - INVALID
+                      - PROCESSED
+                  accrual:
+                    type: number
+                  uploaded_at:
+                    type: string
+        '204':
+          description: нет данных для ответа
+        '401':
+          description: пользователь не авторизован
+        '500':
+          description: внутренняя ошибка сервера
+      security:
+        - bearerAuth: []
+  /api/user/balance:
+    get:
+      tags:
+        - balance
+      description: |
+        ### Получение текущего баланса пользователя
+        
+        **Хендлер**: `GET /api/user/balance`
+        
+        Хендлер доступен только авторизованному пользователю. В ответе должны содержаться данные о текущей сумме баллов лояльности, а также сумме использованных за весь период регистрации баллов.
+        
+        **Формат запроса**:
+        
+        ```
+        GET /api/user/balance HTTP/1.1
+        Content-Length: 0 
+        ```
+        Возможные коды ответа:
+        - 200 — успешная обработка запроса.
+          
+          Формат ответа:
+          ```
+          200 OK HTTP/1.1
+          Content-Type: application/json
+          ...
+          {
+              "current": 500.5,
+              "withdrawn": 42
+          }
+          ```
+        - 401 — пользователь не авторизован.
+        - 500 — внутренняя ошибка сервера.
+      summary: Получение текущего баланса пользователя
+      operationId: getBalance
+      responses:
+        "200":
+          description: all ok
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  current:
+                    type: number
+                  withdrawn:
+                    type: number
+        "401":
+          description: пользователь не авторизован
+        "500":
+          description: внутренняя ошибка сервера
+      security: 
+        - bearerAuth: []
+  /api/user/balance/withdraw:
+    post:
+      tags:
+        - balance
+      summary: Запрос на списание средств
+      operationId: withdraw
+      description: |
+        ### Запрос на списание средств
+        
+        **Хендлер**: `POST /api/user/balance/withdraw`
+        
+        Хендлер доступен только авторизованному пользователю. Номер заказа представляет собой гипотетический номер нового заказа пользователя, в счёт оплаты которого списываются баллы.
+        
+        Примечание: для успешного списания достаточно успешной регистрации запроса, никаких внешних систем начисления не предусмотрено и не требуется реализовывать.
+        
+        **Формат запроса**:
+        ```
+        POST /api/user/balance/withdraw HTTP/1.1
+        Content-Type: application/json
+        {
+            "order": "2377225624",
+            "sum": 751
+        }
+        ```
+        Здесь `order` — номер заказа, а `sum` — сумма баллов к списанию в счёт оплаты.
+        
+        Возможные коды ответа:
+        - 200 — успешная обработка запроса;
+        - 401 — пользователь не авторизован;
+        - 402 — на счету недостаточно средств;
+        - 422 — неверный номер заказа;
+        - 500 — внутренняя ошибка сервера.
+        
+      responses:
+        "200":
+          description: успешная обработка запроса;
+        "401":
+          description: пользователь не авторизован;
+        "402":
+          description: на счету недостаточно средств;
+        "422":
+          description: неверный номер заказа;
+        "500":
+          description: внутренняя ошибка сервера.
+      security: 
+        - bearerAuth: []
+        
+  /api/user/withdrawals:
+    get:
+      tags:
+        - balance
+      summary: Получение информации о выводе средств
+      operationId: withdrawalsList
+      description: |
+        ### Получение информации о выводе средств
+        **Хендлер**: `GET /api/user/withdrawals`
+        Хендлер доступен только авторизованному пользователю. Факты выводов в выдаче должны быть отсортированы по времени вывода от самых новых к самым старым. Формат даты — RFC3339.
+        
+        **Формат запроса**:
+        ```
+        GET /api/user/withdrawals HTTP/1.1
+        Content-Length: 0 
+        ```
+        Возможные коды ответа:
+        - 200 — успешная обработка запроса.
+          Формат ответа:
+          ```
+          200 OK HTTP/1.1
+          Content-Type: application/json
+          ...
+          [
+              {
+                  "order": "2377225624",
+                  "sum": 500,
+                  "processed_at": "2020-12-09T16:09:57+03:00"
+              }
+          ]
+          ``` 
+        - 204 — нет ни одного списания.
+        - 401 — пользователь не авторизован.
+        - 500 — внутренняя ошибка сервера.
+        
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    order:
+                      type: integer
+                    sum:
+                      type: number
+                    processed_at:
+                      type: string
+                      example: 2020-12-09T16:09:57+03:00
+                
+          description: успешная обработка запроса
+        '204':
+          description: нет ни одного списания
+        '401':
+          description: пользователь не авторизован
+        '500':
+          description: внутренняя ошибка сервера
+          
+      security: 
+        - bearerAuth: []
+
+components:
+  securitySchemes:
+    bearerAuth: 
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
