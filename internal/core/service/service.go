@@ -121,20 +121,27 @@ func (s *Service) processOrder(ctx context.Context, order *domain.Order) {
 		return
 	}
 	if orderAccrual.Status == "PROCESSED" {
-		order.Accrual = orderAccrual.Accrual
-		order.Status = domain.OrderStatusProcessed
-	} else if order.Status == "INVALID" {
+		_, err := s.Accrual(ctx, order.UserID, order.Number, orderAccrual.Accrual)
+		if err != nil {
+			s.logger.Error("accrual order error", zap.Error(err))
+			return
+		}
+		return
+	}
+
+	currentStatus := order.Status
+	if order.Status == "INVALID" {
 		order.Status = domain.OrderStatusInvalid
 	} else {
 		order.Status = domain.OrderStatusProcessing
 	}
-
-	order, err = s.repo.UpdateOrder(ctx, order)
-	if err != nil {
-		s.logger.Error("update order error", zap.Error(err))
-		return
+	if order.Status != currentStatus {
+		_, err = s.repo.UpdateOrder(ctx, order)
+		if err != nil {
+			s.logger.Error("update order error", zap.Error(err))
+			return
+		}
 	}
-
 }
 
 func (s *Service) GetOrdersByUser(ctx context.Context, userID uint64) ([]*domain.Order, error) {

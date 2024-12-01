@@ -45,6 +45,7 @@ require (
 require (
 	aidanwoods.dev/go-paseto v1.5.2
 	github.com/Masterminds/squirrel v1.5.4
+	github.com/gin-contrib/gzip v1.0.1
 	github.com/gin-gonic/gin v1.10.0
 	github.com/govalues/decimal v0.1.33
 	github.com/hashicorp/errwrap v1.1.0 // indirect

@@ -3,6 +3,7 @@ package http
 import (
 	"github.com/MikeRez0/ypgophermart/internal/adapter/config"
 	"github.com/MikeRez0/ypgophermart/internal/core/port"
+	"github.com/gin-contrib/gzip"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -21,6 +22,8 @@ func NewRouter(
 	router := gin.New()
 
 	router.Use(logRequest(log))
+
+	router.Use(gzip.Gzip(gzip.BestSpeed))
 
 	api := router.Group("/api")
 	{

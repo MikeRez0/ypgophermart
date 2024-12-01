@@ -55,7 +55,7 @@ func logRequest(log *zap.Logger) gin.HandlerFunc {
 
 		c.Next()
 
-		log.Info("Incoming HTTP request",
+		log.Info("Income HTTP request",
 			zap.String("method", c.Request.Method),
 			zap.String("path", c.Request.RequestURI),
 			zap.Int("status", c.Writer.Status()),
