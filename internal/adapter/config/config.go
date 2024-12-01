@@ -14,8 +14,12 @@ type Config struct {
 	App      *App
 }
 
+const AppModeProduction = "PROD"
+const AppModeDevelop = "DEV"
+
 type App struct {
 	LogLevel string `env:"LOG_LEVEL"`
+	Mode     string
 }
 
 type Database struct {
@@ -40,6 +44,7 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&http.HostString, "a", `localhost:8080`, "HTTP server endpoint")
 	flag.StringVar(&accrual.HostString, "r", "", "Accrual system address")
 	flag.StringVar(&app.LogLevel, "l", `error`, "Log level")
+	flag.StringVar(&app.Mode, "m", `DEV`, "PROD / DEV")
 	flag.Parse()
 
 	err := env.Parse(&db)

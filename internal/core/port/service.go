@@ -14,7 +14,7 @@ type Service interface {
 	CreateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error)
 	GetOrdersByUser(context.Context, uint64) ([]*domain.Order, error)
 
-	GetUserBalance(ctx context.Context, user *domain.User) (*domain.Balance, error)
-	Accrual(ctx context.Context, user *domain.User, amount decimal.Decimal) (*domain.Balance, error)
-	Withdrawal(ctx context.Context, user *domain.User, amount decimal.Decimal) (*domain.Balance, error)
+	GetUserBalance(ctx context.Context, userID uint64) (*domain.Balance, error)
+	Accrual(ctx context.Context, userID uint64, orderNumber uint64, amount decimal.Decimal) (*domain.Balance, error)
+	Withdrawal(ctx context.Context, userID uint64, orderNumber uint64, amount decimal.Decimal) (*domain.Balance, error)
 }

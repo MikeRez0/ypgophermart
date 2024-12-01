@@ -19,7 +19,7 @@ type Order struct {
 	UserID     uint64
 	Number     uint64
 	Accrual    decimal.Decimal
+	Withdrawal decimal.Decimal
 	Status     OrderStatus
 	UploadedAt time.Time
-	User       *User
 }

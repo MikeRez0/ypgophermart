@@ -1,6 +1,7 @@
 package http
 
 import (
+	"bytes"
 	"net/http"
 	"strconv"
 	"time"
@@ -9,14 +10,17 @@ import (
 	"github.com/MikeRez0/ypgophermart/internal/core/port"
 	"github.com/gin-gonic/gin"
 	"github.com/govalues/decimal"
+	"go.uber.org/zap"
 )
 
 type OrderHandler struct {
+	Handler
 	service port.Service
 }
 
-func NewOrderHandler(service port.Service) (*OrderHandler, error) {
+func NewOrderHandler(service port.Service, logger *zap.Logger) (*OrderHandler, error) {
 	return &OrderHandler{
+		Handler: *NewHandler(logger),
 		service: service,
 	}, nil
 }
@@ -24,26 +28,35 @@ func NewOrderHandler(service port.Service) (*OrderHandler, error) {
 func (oh *OrderHandler) CreateOrder(ctx *gin.Context) {
 	userID := getAuthPayload(ctx).UserID
 
-	orderNum, err := strconv.Atoi(ctx.Param("order"))
+	buf := new(bytes.Buffer)
+	_, err := buf.ReadFrom(ctx.Request.Body)
 	if err != nil {
-		handleValidationError(ctx, domain.ErrOrderBadNumber)
+		oh.handleValidationError(ctx, domain.ErrBadRequest)
+		return
+	}
+	defer ctx.Request.Body.Close()
+
+	orderNum, err := strconv.Atoi(buf.String())
+	if err != nil {
+		oh.handleValidationError(ctx, domain.ErrOrderBadNumber)
+		return
 	}
 
 	order := &domain.Order{Number: uint64(orderNum), UserID: userID}
 	_, err = oh.service.CreateOrder(ctx, order)
 	if err != nil {
-		handleError(ctx, err)
+		oh.handleError(ctx, err)
 		return
 	}
 
-	handleSuccessWithStatus(ctx, nil, http.StatusAccepted)
+	oh.handleSuccessWithStatus(ctx, nil, http.StatusAccepted)
 }
 
 type OrderResp struct {
-	Number     uint64          `json:"number"`
-	Status     string          `json:"status"`
-	Accrual    decimal.Decimal `json:"accrual"`
-	UploadedAt time.Time       `json:"uploaded_at"`
+	Number     uint64           `json:"number"`
+	Status     string           `json:"status"`
+	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
+	UploadedAt time.Time        `json:"uploaded_at"`
 }
 
 func (oh *OrderHandler) ListOrdersByUser(ctx *gin.Context) {
@@ -52,19 +65,25 @@ func (oh *OrderHandler) ListOrdersByUser(ctx *gin.Context) {
 
 	list, err := oh.service.GetOrdersByUser(ctx, userID)
 	if err != nil {
-		handleError(ctx, err)
+		oh.handleError(ctx, err)
 		return
 	}
 
 	result := make([]OrderResp, 0, len(list))
 	for _, o := range list {
-		result = append(result, OrderResp{
+		r := OrderResp{
 			Number:     o.Number,
-			Accrual:    o.Accrual,
 			Status:     string(o.Status),
 			UploadedAt: o.UploadedAt,
-		})
+		}
+		if o.Accrual.Cmp(decimal.Zero) != 0 {
+			d := o.Accrual
+			r.Accrual = &d
+		} else {
+			r.Accrual = nil
+		}
+		result = append(result, r)
 	}
 
-	handleSuccess(ctx, result)
+	oh.handleSuccess(ctx, result)
 }

@@ -32,4 +32,5 @@ var (
 	ErrOrderAlreadyAcceptedByUser       = errors.New("order already accepted by user")
 	ErrOrderAlreadyAcceptedBAnotherUser = errors.New("order already accepted by another user")
 	ErrOrderBadNumber                   = errors.New("order number is not valid")
+	ErrOrderDoubleWithdraw              = errors.New("order already withdrawn")
 )

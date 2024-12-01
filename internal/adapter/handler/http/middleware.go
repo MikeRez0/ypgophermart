@@ -2,37 +2,40 @@ package http
 
 import (
 	"strings"
+	"time"
 
 	"github.com/MikeRez0/ypgophermart/internal/core/domain"
 	"github.com/MikeRez0/ypgophermart/internal/core/port"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 const authHeaderKey = "Authorization"
 const authType = "Bearer"
 const userPayloadKey = "user_payload"
 
-func authCheck(tokenService port.TokenService) gin.HandlerFunc {
+func authCheck(tokenService port.TokenService, logger *zap.Logger) gin.HandlerFunc {
+	authHandler := &Handler{logger: logger}
 	return func(ctx *gin.Context) {
 		header := ctx.Request.Header.Get(authHeaderKey)
 		if len(header) == 0 {
-			handleAbort(ctx, domain.ErrEmptyAuthorizationHeader)
+			authHandler.handleAbort(ctx, domain.ErrEmptyAuthorizationHeader)
 			return
 		}
 
 		words := strings.Split(header, " ")
 		if len(words) != 2 {
-			handleAbort(ctx, domain.ErrInvalidAuthorizationHeader)
+			authHandler.handleAbort(ctx, domain.ErrInvalidAuthorizationHeader)
 			return
 		}
 		if words[0] != authType {
-			handleAbort(ctx, domain.ErrInvalidAuthorizationType)
+			authHandler.handleAbort(ctx, domain.ErrInvalidAuthorizationType)
 			return
 		}
 		token := words[1]
 		payload, err := tokenService.VerifyToken(token)
 		if err != nil {
-			handleAbort(ctx, domain.ErrInvalidToken)
+			authHandler.handleAbort(ctx, domain.ErrInvalidToken)
 			return
 		}
 
@@ -44,4 +47,19 @@ func authCheck(tokenService port.TokenService) gin.HandlerFunc {
 
 func getAuthPayload(ctx *gin.Context) *port.TokenPayload {
 	return ctx.MustGet(userPayloadKey).(*port.TokenPayload)
+}
+
+func logRequest(log *zap.Logger) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		t := time.Now()
+
+		c.Next()
+
+		log.Info("Incoming HTTP request",
+			zap.String("method", c.Request.Method),
+			zap.String("path", c.Request.RequestURI),
+			zap.Int("status", c.Writer.Status()),
+			zap.Int("size", c.Writer.Size()),
+			zap.String("duration", time.Since(t).String()))
+	}
 }

@@ -2,10 +2,13 @@ package main
 
 import (
 	"context"
+	"fmt"
 
 	"github.com/MikeRez0/ypgophermart/internal/adapter/auth"
+	"github.com/MikeRez0/ypgophermart/internal/adapter/client/accrual"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/config"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/handler/http"
+	"github.com/MikeRez0/ypgophermart/internal/adapter/logger"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/storage"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/storage/repository"
 	"github.com/MikeRez0/ypgophermart/internal/core/service"
@@ -13,55 +16,85 @@ import (
 )
 
 func main() {
-	logger, _ := zap.NewProduction()
-	defer logger.Sync()
-
 	conf, err := config.NewConfig()
 	if err != nil {
-		logger.Fatal("config error", zap.Error(err))
+		fmt.Printf("config error:%s", err)
+		return
 	}
+
+	log := logger.NewLogger(conf.App)
+	if log == nil {
+		fmt.Printf("error creating log")
+		return
+	}
+	defer func() {
+		err := log.Sync()
+		if err != nil {
+			fmt.Printf("log error: %s", err)
+		}
+	}()
 
 	ctx := context.Background()
 
 	db, err := storage.NewDBStorage(ctx, conf.Database)
 	if err != nil {
-		logger.Fatal("database error", zap.Error(err))
+		log.Error("database error", zap.Error(err))
+		return
 	}
 	err = db.RunMigrations()
 	if err != nil {
-		logger.Fatal("database migration error", zap.Error(err))
+		log.Error("database migration error", zap.Error(err))
+		return
 	}
 
 	repo, err := repository.NewRepository(db)
 	if err != nil {
-		logger.Fatal("order repo creating error", zap.Error(err))
+		log.Error("order repo creating error", zap.Error(err))
+		return
 	}
 	tokenService, err := auth.New()
 	if err != nil {
-		logger.Fatal("token service creating error", zap.Error(err))
+		log.Error("token service creating error", zap.Error(err))
+		return
 	}
 
-	svc, err := service.NewService(repo, tokenService)
+	accrual, err := accrual.NewAccrualClient(conf.Accrual, log.Named("Accrual"))
 	if err != nil {
-		logger.Fatal("order service creating error", zap.Error(err))
+		log.Error("accrual client creating error", zap.Error(err))
+		return
 	}
 
-	orderHandler, err := http.NewOrderHandler(svc)
+	svc, err := service.NewService(repo, tokenService, accrual, log.Named("Service"))
 	if err != nil {
-		logger.Fatal("order handler creating error", zap.Error(err))
-	}
-	userHandler, err := http.NewUserHandler(svc)
-	if err != nil {
-		logger.Fatal("user handler creating error", zap.Error(err))
+		log.Error("order service creating error", zap.Error(err))
+		return
 	}
 
-	r, err := http.NewRouter(conf.HTTP, tokenService, orderHandler, userHandler)
+	userHandler, err := http.NewUserHandler(svc, log.Named("User handler"))
 	if err != nil {
-		logger.Fatal("router creating error", zap.Error(err))
+		log.Error("user handler creating error", zap.Error(err))
+		return
+	}
+	orderHandler, err := http.NewOrderHandler(svc, log.Named("Order handler"))
+	if err != nil {
+		log.Error("order handler creating error", zap.Error(err))
+		return
+	}
+	balanceHandler, err := http.NewBalanceHandler(svc, log)
+	if err != nil {
+		log.Error("balance handler creating error", zap.Error(err))
+		return
+	}
+
+	r, err := http.NewRouter(conf.HTTP, tokenService, orderHandler, userHandler, balanceHandler, log.Named("Router"))
+	if err != nil {
+		log.Error("router creating error", zap.Error(err))
+		return
 	}
 
 	err = r.Serve(conf.HTTP.HostString)
 	if err != nil {
-		logger.Fatal("router start error", zap.Error(err))
+		log.Error("router serve error", zap.Error(err))
+		return
 	}
 }

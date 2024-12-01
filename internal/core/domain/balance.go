@@ -6,5 +6,4 @@ type Balance struct {
 	UserID    uint64
 	Current   decimal.Decimal
 	Withdrawn decimal.Decimal
-	User      *User
 }

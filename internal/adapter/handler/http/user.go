@@ -5,9 +5,11 @@ import (
 	"github.com/MikeRez0/ypgophermart/internal/core/port"
 	"github.com/MikeRez0/ypgophermart/internal/core/utils"
 	"github.com/gin-gonic/gin"
+	"go.uber.org/zap"
 )
 
 type UserHandler struct {
+	Handler
 	service port.Service
 }
 
@@ -16,22 +18,24 @@ type UserRequest struct {
 	Password string `json:"password"`
 }
 
-func NewUserHandler(service port.Service) (*UserHandler, error) {
-	return &UserHandler{service: service}, nil
+func NewUserHandler(service port.Service, logger *zap.Logger) (*UserHandler, error) {
+	return &UserHandler{
+		Handler: Handler{logger: logger},
+		service: service}, nil
 }
 
 func (uh *UserHandler) RegisterUser(ctx *gin.Context) {
 	userReq := UserRequest{}
 	err := ctx.ShouldBindBodyWithJSON(&userReq)
 	if err != nil {
-		handleValidationError(ctx, err)
+		uh.handleValidationError(ctx, err)
 		return
 	}
 
 	// Hash password
 	hashed, err := utils.HashPassword(userReq.Password)
 	if err != nil {
-		handleError(ctx, domain.ErrInternal)
+		uh.handleError(ctx, domain.ErrInternal)
 		return
 	}
 	userReq.Password = hashed
@@ -43,7 +47,7 @@ func (uh *UserHandler) RegisterUser(ctx *gin.Context) {
 
 	_, err = uh.service.RegisterUser(ctx, user)
 	if err != nil {
-		handleError(ctx, err)
+		uh.handleError(ctx, err)
 		return
 	}
 
@@ -55,17 +59,17 @@ func (uh *UserHandler) LoginUser(ctx *gin.Context) {
 	userReq := UserRequest{}
 	err := ctx.ShouldBindBodyWithJSON(&userReq)
 	if err != nil {
-		handleValidationError(ctx, err)
+		uh.handleValidationError(ctx, err)
 		return
 	}
 
 	token, err := uh.service.LoginUser(ctx, userReq.Login, userReq.Password)
 	if err != nil {
-		handleError(ctx, err)
+		uh.handleError(ctx, err)
 		return
 	}
 
-	handleSuccess(ctx, struct {
+	uh.handleSuccess(ctx, struct {
 		Token string `json:"token"`
 	}{Token: token})
 }

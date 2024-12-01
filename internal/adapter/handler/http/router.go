@@ -4,8 +4,7 @@ import (
 	"github.com/MikeRez0/ypgophermart/internal/adapter/config"
 	"github.com/MikeRez0/ypgophermart/internal/core/port"
 	"github.com/gin-gonic/gin"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
+	"go.uber.org/zap"
 )
 
 type Router struct {
@@ -16,12 +15,12 @@ func NewRouter(
 	conf *config.HTTP,
 	tokenService port.TokenService,
 	orderHandler *OrderHandler,
-	userHandler *UserHandler) (*Router, error) {
-
+	userHandler *UserHandler,
+	balanceHandler *BalanceHandler,
+	log *zap.Logger) (*Router, error) {
 	router := gin.New()
 
-	// Swagger
-	router.GET("/docs/*any", ginSwagger.WrapHandler(swaggerFiles.Handler))
+	router.Use(logRequest(log))
 
 	api := router.Group("/api")
 	{
@@ -32,9 +31,17 @@ func NewRouter(
 
 			orders := user.Group("/orders")
 			{
-				orders.Use(authCheck(tokenService))
-				orders.POST("/:order", orderHandler.CreateOrder)
+				orders.Use(authCheck(tokenService, log))
+				orders.POST("", orderHandler.CreateOrder)
 				orders.GET("", orderHandler.ListOrdersByUser)
+			}
+
+			balance := user.Group("/balance")
+			{
+				balance.Use(authCheck(tokenService, log))
+				balance.GET("", balanceHandler.UserBalance)
+				balance.POST("/withdraw", balanceHandler.Withdraw)
+				balance.GET("/withdrawals", balanceHandler.ListWithdrawals)
 			}
 		}
 	}
