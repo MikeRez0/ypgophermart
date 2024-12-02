@@ -1,0 +1,40 @@
+@@startuml gophermart
+
+actor "user" as user
+participant gophermart
+database "db (repo)" as db
+participant accrual
+participant market
+
+group register user
+user->gophermart: POST /api/user/register
+gophermart->db: user insert
+end group
+
+group buy
+user->market: совершает покупку
+market->accrual: Заказ попадает в систему\n расчёта баллов лояльности
+end group
+
+opt login user
+user->gophermart: POST /api/user/login
+gophermart->db: user read
+end opt
+
+group New order
+user->gophermart: POST /api/user/orders
+gophermart->db: order[NEW] insert 
+gophermart-->user: 202
+activate gophermart
+gophermart->gophermart: связывает номер заказа \nс пользователем
+gophermart->db: order[PROCESSING] update 
+gophermart->accrual: сверяет номер 
+gophermart->gophermart: начисление баллов лояльности
+gophermart->db: order[PROCESSED] update
+deactivate gophermart
+end group
+
+user->gophermart: GET /api/user/orders
+gophermart->db: order read
+user-> gophermart: POST /api/user/balance/withdraw\nсписывает доступные баллы
+@@enduml
