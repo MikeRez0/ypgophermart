@@ -69,6 +69,7 @@ func (uh *UserHandler) LoginUser(ctx *gin.Context) {
 		return
 	}
 
+	ctx.Header(authHeaderKey, authType+" "+token)
 	uh.handleSuccess(ctx, struct {
 		Token string `json:"token"`
 	}{Token: token})
