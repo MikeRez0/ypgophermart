@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"strconv"
 	"time"
 
 	"github.com/MikeRez0/ypgophermart/internal/core/domain"
@@ -76,7 +75,7 @@ func (s *Service) LoginUser(ctx context.Context, login string, password string) 
 
 func (s *Service) CreateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
 	// check number format by Luna
-	err := utils.ValidateLuhn(strconv.Itoa(int(order.Number)))
+	err := utils.ValidateLuhn(string(order.Number))
 	if err != nil {
 		return nil, domain.ErrOrderBadNumber
 	}
@@ -134,7 +133,7 @@ func (s *Service) GetUserBalance(ctx context.Context, userID uint64) (*domain.Ba
 
 func (s *Service) Accrual(ctx context.Context,
 	userID uint64,
-	orderID uint64,
+	orderID domain.OrderNumber,
 	amount decimal.Decimal,
 ) (*domain.Balance, error) {
 	order, err := s.repo.ReadOrder(ctx, orderID)
@@ -162,7 +161,7 @@ func (s *Service) Accrual(ctx context.Context,
 }
 func (s *Service) Withdrawal(ctx context.Context,
 	userID uint64,
-	orderID uint64,
+	orderID domain.OrderNumber,
 	amount decimal.Decimal,
 ) (*domain.Balance, error) {
 	order, err := s.repo.ReadOrder(ctx, orderID)
@@ -205,7 +204,7 @@ func (s *Service) Withdrawal(ctx context.Context,
 	return balance, nil
 }
 
-func (s *Service) AccrualOrder(ctx context.Context, orderNumber uint64, amount decimal.Decimal) error {
+func (s *Service) AccrualOrder(ctx context.Context, orderNumber domain.OrderNumber, amount decimal.Decimal) error {
 	o, err := s.repo.ReadOrder(ctx, orderNumber)
 	if err != nil {
 		return err
@@ -215,7 +214,7 @@ func (s *Service) AccrualOrder(ctx context.Context, orderNumber uint64, amount d
 	return err
 }
 
-func (s *Service) UpdateOrderStatus(ctx context.Context, orderNumber uint64, status domain.OrderStatus) error {
+func (s *Service) UpdateOrderStatus(ctx context.Context, orderNumber domain.OrderNumber, status domain.OrderStatus) error {
 	o, err := s.repo.ReadOrder(ctx, orderNumber)
 	if err != nil {
 		return err

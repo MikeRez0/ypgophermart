@@ -47,7 +47,7 @@ func (or *Repository) CreateOrder(ctx context.Context, order *domain.Order) (*do
 	return order, nil
 }
 
-func (or *Repository) selectOrder(ctx context.Context, tx queryAble, orderID uint64, forUpdate bool) (*domain.Order, error) {
+func (or *Repository) selectOrder(ctx context.Context, tx queryAble, orderID domain.OrderNumber, forUpdate bool) (*domain.Order, error) {
 	statement := or.db.QueryBuilder.
 		Select("user_id", "number", "accrual", "withdrawal", "status", "uploaded_at").
 		From("orders").
@@ -81,7 +81,7 @@ func (or *Repository) selectOrder(ctx context.Context, tx queryAble, orderID uin
 	return &order, nil
 }
 
-func (or *Repository) ReadOrder(ctx context.Context, orderID uint64) (*domain.Order, error) {
+func (or *Repository) ReadOrder(ctx context.Context, orderID domain.OrderNumber) (*domain.Order, error) {
 	return or.selectOrder(ctx, or.db.Pool, orderID, false)
 }
 
@@ -274,7 +274,7 @@ func (or *Repository) ReadBalanceByUserID(ctx context.Context, userID uint64) (*
 	return or.selectBalanceByUserID(ctx, or.db.Pool, userID, false)
 }
 func (or *Repository) UpdateUserBalanceByOrder(ctx context.Context,
-	userID uint64, orderNumber uint64, updateFn port.UpdateBalanceFn) (*domain.Balance, error) {
+	userID uint64, orderNumber domain.OrderNumber, updateFn port.UpdateBalanceFn) (*domain.Balance, error) {
 	err := pgx.BeginFunc(ctx, or.db, func(tx pgx.Tx) error {
 		balance, err := or.selectBalanceByUserID(ctx, tx, userID, true)
 		if err != nil {

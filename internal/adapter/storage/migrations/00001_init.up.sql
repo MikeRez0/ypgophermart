@@ -13,7 +13,7 @@ CREATE TABLE
 CREATE TABLE
 	orders (
 		user_id int8 NOT NULL,
-		"number" int8 NOT NULL,
+		"number" varchar NOT NULL,
 		accrual numeric(15, 2) NOT NULL,
 		withdrawal numeric(15, 2) NOT NULL,
 		status public."orderstatus" NOT NULL,

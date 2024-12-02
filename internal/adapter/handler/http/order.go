@@ -3,7 +3,6 @@ package http
 import (
 	"bytes"
 	"net/http"
-	"strconv"
 	"time"
 
 	"github.com/MikeRez0/ypgophermart/internal/core/domain"
@@ -36,13 +35,9 @@ func (oh *OrderHandler) CreateOrder(ctx *gin.Context) {
 	}
 	defer ctx.Request.Body.Close()
 
-	orderNum, err := strconv.Atoi(buf.String())
-	if err != nil {
-		oh.handleValidationError(ctx, domain.ErrOrderBadNumber)
-		return
-	}
+	orderNum := domain.OrderNumber(buf.String())
 
-	order := &domain.Order{Number: uint64(orderNum), UserID: userID}
+	order := &domain.Order{Number: orderNum, UserID: userID}
 	_, err = oh.service.CreateOrder(ctx, order)
 	if err != nil {
 		oh.handleError(ctx, err)
@@ -53,7 +48,7 @@ func (oh *OrderHandler) CreateOrder(ctx *gin.Context) {
 }
 
 type OrderResp struct {
-	Number     uint64           `json:"number"`
+	Number     string           `json:"number"`
 	Status     string           `json:"status"`
 	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
 	UploadedAt time.Time        `json:"uploaded_at"`
@@ -72,7 +67,7 @@ func (oh *OrderHandler) ListOrdersByUser(ctx *gin.Context) {
 	result := make([]OrderResp, 0, len(list))
 	for _, o := range list {
 		r := OrderResp{
-			Number:     o.Number,
+			Number:     string(o.Number),
 			Status:     string(o.Status),
 			UploadedAt: o.UploadedAt,
 		}

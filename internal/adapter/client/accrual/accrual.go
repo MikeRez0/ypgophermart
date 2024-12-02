@@ -19,14 +19,14 @@ import (
 type AccrualClient struct {
 	logger     *zap.Logger
 	host       string
-	orderQueue chan uint64
+	orderQueue chan domain.OrderNumber
 }
 
 func NewAccrualClient(cfg *config.Accrual, log *zap.Logger) (*AccrualClient, error) {
 	return &AccrualClient{
 		host:       cfg.HostString,
 		logger:     log,
-		orderQueue: make(chan uint64, 2),
+		orderQueue: make(chan domain.OrderNumber, 2),
 	}, nil
 }
 
@@ -48,21 +48,21 @@ func (e *errAccrualRequest) Error() string {
 
 type orderAccrualStatus struct {
 	Status      string
-	OrderNumber uint64
+	OrderNumber domain.OrderNumber
 	Accrual     decimal.Decimal
 }
 
-func (c *AccrualClient) ScheduleOrderAccrual(orderNumber uint64) {
-	c.logger.Debug("> put order in queue (schedule)", zap.Uint64("order", orderNumber))
+func (c *AccrualClient) ScheduleOrderAccrual(orderNumber domain.OrderNumber) {
+	c.logger.Debug("> put order in queue (schedule)", zap.String("order", string(orderNumber)))
 	c.orderQueue <- orderNumber
-	c.logger.Debug("< put order in queue (schedule)", zap.Uint64("order", orderNumber))
+	c.logger.Debug("< put order in queue (schedule)", zap.String("order", string(orderNumber)))
 }
 
 func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port.OrderAccrualUpdater, workers int) {
 	pause := sync.WaitGroup{}
 
 	for range workers {
-		go func(number chan uint64) {
+		go func(number chan domain.OrderNumber) {
 			for {
 				select {
 				case orderNumber := <-number:
@@ -71,13 +71,13 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 					// wait for pause canceling
 					pause.Wait()
 					c.logger.Debug("Start processing order accrual",
-						zap.Uint64("order", orderNumber))
+						zap.String("order", string(orderNumber)))
 
 					accrualStatus, err := c.requestAccrual(orderNumber)
 					if err != nil {
 						if e, ok := err.(*errAccrualRequest); ok {
 							c.logger.Debug("Need wait for retry for order accrual",
-								zap.Uint64("order", orderNumber),
+								zap.String("order", string(orderNumber)),
 								zap.Bool("NeedPause", e.NeedSleep),
 								zap.Int("Retry-after", int(e.RetryAfter)))
 
@@ -88,13 +88,13 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 							select {
 							case <-r.C:
 								c.logger.Debug("Pause finished",
-									zap.Uint64("order", orderNumber))
+									zap.String("order", string(orderNumber)))
 
 								pause.Done()
 
-								c.logger.Debug("> put order in queue (retry after pause)", zap.Uint64("order", orderNumber))
+								c.logger.Debug("> put order in queue (retry after pause)", zap.String("order", string(orderNumber)))
 								c.orderQueue <- orderNumber
-								c.logger.Debug("< put order in queue (retry after pause)", zap.Uint64("order", orderNumber))
+								c.logger.Debug("< put order in queue (retry after pause)", zap.String("order", string(orderNumber)))
 							}
 
 							continue
@@ -112,7 +112,7 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 					}
 
 					c.logger.Debug("Finished processing order accrual",
-						zap.Uint64("order", orderNumber))
+						zap.String("order", string(orderNumber)))
 				case <-ctx.Done():
 					c.logger.Debug("Finished worker")
 				}
@@ -121,30 +121,30 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 	}
 }
 
-func (c *AccrualClient) retryRequest(orderNumber uint64, waitFor time.Duration) {
+func (c *AccrualClient) retryRequest(orderNumber domain.OrderNumber, waitFor time.Duration) {
 	r := time.NewTimer(waitFor)
 
 	select {
 	case <-r.C:
 		c.logger.Debug("Next request for order accrual",
-			zap.Uint64("order", orderNumber))
+			zap.String("order", string(orderNumber)))
 
-		c.logger.Debug("> put order in queue (retry request)", zap.Uint64("order", orderNumber))
+		c.logger.Debug("> put order in queue (retry request)", zap.String("order", string(orderNumber)))
 		c.orderQueue <- orderNumber
-		c.logger.Debug("< put order in queue (retry request)", zap.Uint64("order", orderNumber))
+		c.logger.Debug("< put order in queue (retry request)", zap.String("order", string(orderNumber)))
 	}
 
 }
 
-func (c *AccrualClient) requestAccrual(orderNumber uint64) (*orderAccrualStatus, error) {
-	requestStr := "http://" + c.host + "/api/orders/" + strconv.Itoa(int(orderNumber))
+func (c *AccrualClient) requestAccrual(orderNumber domain.OrderNumber) (*orderAccrualStatus, error) {
+	requestStr := "http://" + c.host + "/api/orders/" + string(orderNumber)
 	req, err := http.NewRequest(http.MethodGet, requestStr, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error on %s : %w", requestStr, err)
 	}
 
 	c.logger.Debug("Fire request for order accrual",
-		zap.Uint64("order", orderNumber))
+		zap.String("order", string(orderNumber)))
 
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
@@ -167,16 +167,12 @@ func (c *AccrualClient) requestAccrual(orderNumber uint64) (*orderAccrualStatus,
 			return nil, &errAccrualRequest{RetryAfter: 10 * time.Second}
 		}
 		c.logger.Error("unexpected status for request",
-			zap.Uint64("order", orderNumber), zap.Int("status", resp.StatusCode))
+			zap.String("order", string(orderNumber)), zap.Int("status", resp.StatusCode))
 		return nil, fmt.Errorf("bad response %v for request %s", resp.StatusCode, requestStr)
 	}
 
 	var result accrualResponse
 	err = json.NewDecoder(resp.Body).Decode(&result)
-	if err != nil {
-		return nil, fmt.Errorf("error on response decode: %w", err)
-	}
-	num, err := strconv.Atoi(result.Order)
 	if err != nil {
 		return nil, fmt.Errorf("error on response decode: %w", err)
 	}
@@ -186,7 +182,7 @@ func (c *AccrualClient) requestAccrual(orderNumber uint64) (*orderAccrualStatus,
 	}
 
 	return &orderAccrualStatus{
-		OrderNumber: uint64(num),
+		OrderNumber: domain.OrderNumber(result.Order),
 		Accrual:     acc,
 		Status:      result.Status,
 	}, nil

@@ -8,10 +8,10 @@ import (
 )
 
 type AccrualServiceClient interface {
-	ScheduleOrderAccrual(orderNumber uint64)
+	ScheduleOrderAccrual(orderNumber domain.OrderNumber)
 }
 
 type OrderAccrualUpdater interface {
-	AccrualOrder(ctx context.Context, orderNumber uint64, amount decimal.Decimal) error
-	UpdateOrderStatus(ctx context.Context, orderNumber uint64, status domain.OrderStatus) error
+	AccrualOrder(ctx context.Context, orderNumber domain.OrderNumber, amount decimal.Decimal) error
+	UpdateOrderStatus(ctx context.Context, orderNumber domain.OrderNumber, status domain.OrderStatus) error
 }

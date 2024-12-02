@@ -15,9 +15,11 @@ const (
 	OrderStatusInvalid    OrderStatus = "INVALID"
 )
 
+type OrderNumber string
+
 type Order struct {
+	Number     OrderNumber
 	UserID     uint64
-	Number     uint64
 	Accrual    decimal.Decimal
 	Withdrawal decimal.Decimal
 	Status     OrderStatus

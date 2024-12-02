@@ -3,6 +3,7 @@ package http
 import (
 	"time"
 
+	"github.com/MikeRez0/ypgophermart/internal/core/domain"
 	"github.com/MikeRez0/ypgophermart/internal/core/port"
 	"github.com/gin-gonic/gin"
 	"github.com/govalues/decimal"
@@ -41,7 +42,7 @@ func (bh *BalanceHandler) UserBalance(ctx *gin.Context) {
 }
 
 type withdrawnRequest struct {
-	Order uint64  `json:"order"`
+	Order string  `json:"order"`
 	Sum   float64 `json:"sum"`
 }
 
@@ -60,7 +61,7 @@ func (bh *BalanceHandler) Withdraw(ctx *gin.Context) {
 		bh.handleValidationError(ctx, err)
 		return
 	}
-	balance, err := bh.service.Withdrawal(ctx, userID, req.Order, amount)
+	balance, err := bh.service.Withdrawal(ctx, userID, domain.OrderNumber(req.Order), amount)
 	if err != nil {
 		bh.handleError(ctx, err)
 		return
@@ -69,7 +70,7 @@ func (bh *BalanceHandler) Withdraw(ctx *gin.Context) {
 }
 
 type withdrawalResponse struct {
-	Order       uint64          `json:"order"`
+	Order       string          `json:"order"`
 	Sum         decimal.Decimal `json:"sum"`
 	ProcessedAt time.Time       `json:"processed_at"`
 }
@@ -89,7 +90,7 @@ func (bh *BalanceHandler) ListWithdrawals(ctx *gin.Context) {
 			continue
 		}
 		result = append(result, withdrawalResponse{
-			Order:       i.Number,
+			Order:       string(i.Number),
 			Sum:         i.Withdrawal,
 			ProcessedAt: i.UploadedAt,
 		})
