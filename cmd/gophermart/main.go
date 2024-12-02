@@ -70,6 +70,8 @@ func main() {
 		return
 	}
 
+	accrual.ScheduleAccrualService(ctx, svc, 5)
+
 	userHandler, err := http.NewUserHandler(svc, log.Named("User handler"))
 	if err != nil {
 		log.Error("user handler creating error", zap.Error(err))

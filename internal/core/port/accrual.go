@@ -1,13 +1,17 @@
 package port
 
-import "github.com/govalues/decimal"
+import (
+	"context"
 
-type OrderAccrualResonse struct {
-	Status      string
-	OrderNumber uint64
-	Accrual     decimal.Decimal
-}
+	"github.com/MikeRez0/ypgophermart/internal/core/domain"
+	"github.com/govalues/decimal"
+)
 
 type AccrualServiceClient interface {
-	GetOrderAccrual(orderNumber uint64) (*OrderAccrualResonse, error)
+	ScheduleOrderAccrual(orderNumber uint64)
+}
+
+type OrderAccrualUpdater interface {
+	AccrualOrder(ctx context.Context, orderNumber uint64, amount decimal.Decimal) error
+	UpdateOrderStatus(ctx context.Context, orderNumber uint64, status domain.OrderStatus) error
 }

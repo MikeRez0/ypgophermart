@@ -109,39 +109,9 @@ func (s *Service) CreateOrder(ctx context.Context, order *domain.Order) (*domain
 	}
 
 	//TODO: shedule accrual
-	go s.processOrder(context.Background(), newOrder)
+	go s.accrual.ScheduleOrderAccrual(newOrder.Number)
 
 	return newOrder, nil
-}
-
-func (s *Service) processOrder(ctx context.Context, order *domain.Order) {
-	orderAccrual, err := s.accrual.GetOrderAccrual(order.Number)
-	if err != nil {
-		s.logger.Error("accrual error", zap.Error(err))
-		return
-	}
-	if orderAccrual.Status == "PROCESSED" {
-		_, err := s.Accrual(ctx, order.UserID, order.Number, orderAccrual.Accrual)
-		if err != nil {
-			s.logger.Error("accrual order error", zap.Error(err))
-			return
-		}
-		return
-	}
-
-	currentStatus := order.Status
-	if order.Status == "INVALID" {
-		order.Status = domain.OrderStatusInvalid
-	} else {
-		order.Status = domain.OrderStatusProcessing
-	}
-	if order.Status != currentStatus {
-		_, err = s.repo.UpdateOrder(ctx, order)
-		if err != nil {
-			s.logger.Error("update order error", zap.Error(err))
-			return
-		}
-	}
 }
 
 func (s *Service) GetOrdersByUser(ctx context.Context, userID uint64) ([]*domain.Order, error) {
@@ -179,8 +149,8 @@ func (s *Service) Accrual(ctx context.Context,
 				return fmt.Errorf("Math error:%w", err)
 			}
 			b.Current = newAmount
-			order.Accrual = amount
-			order.Status = domain.OrderStatusProcessed
+			o.Accrual = amount
+			o.Status = domain.OrderStatusProcessed
 
 			return nil
 		})
@@ -233,4 +203,31 @@ func (s *Service) Withdrawal(ctx context.Context,
 	}
 
 	return balance, nil
+}
+
+func (s *Service) AccrualOrder(ctx context.Context, orderNumber uint64, amount decimal.Decimal) error {
+	o, err := s.repo.ReadOrder(ctx, orderNumber)
+	if err != nil {
+		return err
+	}
+
+	_, err = s.Accrual(ctx, o.UserID, o.Number, amount)
+	return err
+}
+
+func (s *Service) UpdateOrderStatus(ctx context.Context, orderNumber uint64, status domain.OrderStatus) error {
+	o, err := s.repo.ReadOrder(ctx, orderNumber)
+	if err != nil {
+		return err
+	}
+
+	//TODO: Checke violation of new status
+	if o.Status == status {
+		return nil
+	}
+
+	o.Status = status
+
+	_, err = s.repo.UpdateOrder(ctx, o)
+	return err
 }
