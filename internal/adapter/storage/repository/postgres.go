@@ -291,7 +291,7 @@ func (or *Repository) UpdateUserBalanceByOrder(ctx context.Context,
 			return err
 		}
 
-		order, err = or.updateOrder(ctx, tx, order)
+		_, err = or.updateOrder(ctx, tx, order)
 		if err != nil {
 			return err
 		}

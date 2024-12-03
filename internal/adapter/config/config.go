@@ -43,7 +43,7 @@ func NewConfig() (*Config, error) {
 	flag.StringVar(&db.DSN, "d", "", "Database string")
 	flag.StringVar(&http.HostString, "a", `localhost:8080`, "HTTP server endpoint")
 	flag.StringVar(&accrual.HostString, "r", "", "Accrual system address")
-	flag.StringVar(&app.LogLevel, "l", `debug`, "Log level")
+	flag.StringVar(&app.LogLevel, "l", `error`, "Log level")
 	flag.StringVar(&app.Mode, "m", `DEV`, "PROD / DEV")
 	flag.Parse()
 

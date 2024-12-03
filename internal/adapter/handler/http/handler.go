@@ -51,7 +51,7 @@ func NewHandler(logger *zap.Logger) *Handler {
 
 // handleValidationError sends an error response for some specific request validation error
 func (h *Handler) handleValidationError(ctx *gin.Context, err error) {
-	ctx.Status(http.StatusBadRequest)
+	ctx.AbortWithError(http.StatusBadRequest, err)
 }
 
 // handleAbort sends an error response and aborts the request with the specified status code and error message

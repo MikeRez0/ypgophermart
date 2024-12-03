@@ -103,7 +103,7 @@ func (s *Service) CreateOrder(ctx context.Context, order *domain.Order) (*domain
 		if errors.Is(err, domain.ErrConflictingData) {
 			return nil, domain.ErrOrderAlreadyAcceptedBAnotherUser
 		}
-		s.logger.Error("Create order", zap.Error(err))
+		s.logger.Error("create order", zap.Error(err))
 		return nil, err
 	}
 
@@ -116,7 +116,7 @@ func (s *Service) CreateOrder(ctx context.Context, order *domain.Order) (*domain
 func (s *Service) GetOrdersByUser(ctx context.Context, userID uint64) ([]*domain.Order, error) {
 	list, err := s.repo.ListOrdersByUser(ctx, userID)
 	if err != nil {
-		s.logger.Error("Get orders for user", zap.Error(err))
+		s.logger.Error("get orders for user", zap.Error(err))
 		return nil, err
 	}
 	return list, nil
@@ -125,7 +125,7 @@ func (s *Service) GetOrdersByUser(ctx context.Context, userID uint64) ([]*domain
 func (s *Service) GetUserBalance(ctx context.Context, userID uint64) (*domain.Balance, error) {
 	balance, err := s.repo.ReadBalanceByUserID(ctx, userID)
 	if err != nil {
-		s.logger.Error("Get balance error", zap.Error(err))
+		s.logger.Error("get balance error", zap.Error(err))
 	}
 
 	return balance, nil
@@ -145,7 +145,7 @@ func (s *Service) Accrual(ctx context.Context,
 		func(b *domain.Balance, o *domain.Order) error {
 			newAmount, err := b.Current.Add(amount)
 			if err != nil {
-				return fmt.Errorf("Math error:%w", err)
+				return fmt.Errorf("math error:%w", err)
 			}
 			b.Current = newAmount
 			o.Accrual = amount
@@ -214,7 +214,8 @@ func (s *Service) AccrualOrder(ctx context.Context, orderNumber domain.OrderNumb
 	return err
 }
 
-func (s *Service) UpdateOrderStatus(ctx context.Context, orderNumber domain.OrderNumber, status domain.OrderStatus) error {
+func (s *Service) UpdateOrderStatus(ctx context.Context,
+	orderNumber domain.OrderNumber, status domain.OrderStatus) error {
 	o, err := s.repo.ReadOrder(ctx, orderNumber)
 	if err != nil {
 		return err
