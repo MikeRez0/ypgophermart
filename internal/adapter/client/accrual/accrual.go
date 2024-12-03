@@ -95,6 +95,8 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 								c.logger.Debug("> put order in queue (retry after pause)", zap.String("order", string(orderNumber)))
 								c.orderQueue <- orderNumber
 								c.logger.Debug("< put order in queue (retry after pause)", zap.String("order", string(orderNumber)))
+							case <-ctx.Done():
+								c.logger.Debug("Canceled pause")
 							}
 
 							continue
@@ -114,7 +116,7 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 					c.logger.Debug("Finished processing order accrual",
 						zap.String("order", string(orderNumber)))
 				case <-ctx.Done():
-					c.logger.Debug("Finished worker")
+					c.logger.Debug("Stopped worker")
 				}
 			}
 		}(c.orderQueue)
