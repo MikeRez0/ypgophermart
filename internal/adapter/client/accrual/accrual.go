@@ -100,7 +100,7 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 							continue
 						}
 						c.logger.Error("Unexpected error on request", zap.Error(err))
-						go c.retryRequest(orderNumber, 3*time.Second)
+						go c.retryRequest(ctx, orderNumber, 3*time.Second)
 						continue
 					}
 
@@ -108,7 +108,7 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 
 					if needRetry {
 						c.logger.Error("Need retry for not finished order", zap.Error(err))
-						go c.retryRequest(orderNumber, 3*time.Second)
+						go c.retryRequest(ctx, orderNumber, 3*time.Second)
 					}
 
 					c.logger.Debug("Finished processing order accrual",
@@ -121,7 +121,7 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 	}
 }
 
-func (c *AccrualClient) retryRequest(orderNumber domain.OrderNumber, waitFor time.Duration) {
+func (c *AccrualClient) retryRequest(ctx context.Context, orderNumber domain.OrderNumber, waitFor time.Duration) {
 	r := time.NewTimer(waitFor)
 
 	select {
@@ -132,6 +132,8 @@ func (c *AccrualClient) retryRequest(orderNumber domain.OrderNumber, waitFor tim
 		c.logger.Debug("> put order in queue (retry request)", zap.String("order", string(orderNumber)))
 		c.orderQueue <- orderNumber
 		c.logger.Debug("< put order in queue (retry request)", zap.String("order", string(orderNumber)))
+	case <-ctx.Done():
+		c.logger.Debug("Canceled retry")
 	}
 
 }
