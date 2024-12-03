@@ -137,7 +137,7 @@ func (c *AccrualClient) retryRequest(orderNumber domain.OrderNumber, waitFor tim
 }
 
 func (c *AccrualClient) requestAccrual(orderNumber domain.OrderNumber) (*orderAccrualStatus, error) {
-	requestStr := "http://" + c.host + "/api/orders/" + string(orderNumber)
+	requestStr := c.host + "/api/orders/" + string(orderNumber)
 	req, err := http.NewRequest(http.MethodGet, requestStr, http.NoBody)
 	if err != nil {
 		return nil, fmt.Errorf("error on %s : %w", requestStr, err)

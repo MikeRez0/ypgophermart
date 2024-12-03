@@ -48,10 +48,10 @@ func (oh *OrderHandler) CreateOrder(ctx *gin.Context) {
 }
 
 type OrderResp struct {
-	Number     string           `json:"number"`
-	Status     string           `json:"status"`
-	Accrual    *decimal.Decimal `json:"accrual,omitempty"`
-	UploadedAt time.Time        `json:"uploaded_at"`
+	Number     string       `json:"number"`
+	Status     string       `json:"status"`
+	Accrual    *jsonDecimal `json:"accrual,omitempty"`
+	UploadedAt time.Time    `json:"uploaded_at"`
 }
 
 func (oh *OrderHandler) ListOrdersByUser(ctx *gin.Context) {
@@ -72,7 +72,7 @@ func (oh *OrderHandler) ListOrdersByUser(ctx *gin.Context) {
 			UploadedAt: o.UploadedAt,
 		}
 		if o.Accrual.Cmp(decimal.Zero) != 0 {
-			d := o.Accrual
+			d := jsonDecimal(o.Accrual)
 			r.Accrual = &d
 		} else {
 			r.Accrual = nil

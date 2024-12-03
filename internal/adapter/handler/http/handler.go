@@ -1,10 +1,12 @@
 package http
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/MikeRez0/ypgophermart/internal/core/domain"
 	"github.com/gin-gonic/gin"
+	"github.com/govalues/decimal"
 	"go.uber.org/zap"
 )
 
@@ -30,6 +32,13 @@ var errorStatusMap = map[error]int{
 	domain.ErrOrderBadNumber:                   http.StatusUnprocessableEntity,
 	domain.ErrOrderDoubleWithdraw:              http.StatusUnprocessableEntity,
 	domain.ErrInsufficientBalance:              http.StatusPaymentRequired,
+}
+
+type jsonDecimal decimal.Decimal
+
+func (j jsonDecimal) MarshalJSON() ([]byte, error) {
+	s := fmt.Sprintf("%f", decimal.Decimal(j))
+	return []byte(s), nil
 }
 
 type Handler struct {

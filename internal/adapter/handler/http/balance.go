@@ -23,8 +23,8 @@ func NewBalanceHandler(service port.Service, logger *zap.Logger) (*BalanceHandle
 }
 
 type balanceResponse struct {
-	Current   decimal.Decimal `json:"current"`
-	Withdrawn decimal.Decimal `json:"withdrawn"`
+	Current   jsonDecimal `json:"current"`
+	Withdrawn jsonDecimal `json:"withdrawn"`
 }
 
 func (bh *BalanceHandler) UserBalance(ctx *gin.Context) {
@@ -37,8 +37,8 @@ func (bh *BalanceHandler) UserBalance(ctx *gin.Context) {
 	}
 
 	bh.handleSuccess(ctx, balanceResponse{
-		Current:   balance.Current,
-		Withdrawn: balance.Withdrawn})
+		Current:   jsonDecimal(balance.Current),
+		Withdrawn: jsonDecimal(balance.Withdrawn)})
 }
 
 type withdrawnRequest struct {
@@ -61,18 +61,30 @@ func (bh *BalanceHandler) Withdraw(ctx *gin.Context) {
 		bh.handleValidationError(ctx, err)
 		return
 	}
+
+	order := &domain.Order{UserID: userID, Number: domain.OrderNumber(req.Order)}
+	order, err = bh.service.CreateOrder(ctx, order)
+	if err != nil {
+		bh.handleError(ctx, err)
+		return
+	}
+
 	balance, err := bh.service.Withdrawal(ctx, userID, domain.OrderNumber(req.Order), amount)
 	if err != nil {
 		bh.handleError(ctx, err)
 		return
 	}
-	bh.handleSuccess(ctx, balanceResponse{Current: balance.Current, Withdrawn: balance.Withdrawn})
+	bh.handleSuccess(ctx,
+		balanceResponse{
+			Current:   jsonDecimal(balance.Current),
+			Withdrawn: jsonDecimal(balance.Withdrawn),
+		})
 }
 
 type withdrawalResponse struct {
-	Order       string          `json:"order"`
-	Sum         decimal.Decimal `json:"sum"`
-	ProcessedAt time.Time       `json:"processed_at"`
+	Order       string      `json:"order"`
+	Sum         jsonDecimal `json:"sum"`
+	ProcessedAt time.Time   `json:"processed_at"`
 }
 
 func (bh *BalanceHandler) ListWithdrawals(ctx *gin.Context) {
@@ -91,7 +103,7 @@ func (bh *BalanceHandler) ListWithdrawals(ctx *gin.Context) {
 		}
 		result = append(result, withdrawalResponse{
 			Order:       string(i.Number),
-			Sum:         i.Withdrawal,
+			Sum:         jsonDecimal(i.Withdrawal),
 			ProcessedAt: i.UploadedAt,
 		})
 	}

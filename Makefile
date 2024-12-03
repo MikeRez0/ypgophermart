@@ -7,13 +7,9 @@ golangci-lint-run:
 	-bash -c 'cat ./.golangci-lint/report-unformatted.json | jq > ./.golangci-lint/report.json'
 
 
-.PHONY: build-server
-build-server:
-	go build -C cmd/server
-
-.PHONY: build-agent
-build-agent:
-	go build -C cmd/agent
+.PHONY: build
+build:
+	go build -C cmd/gophermart
 
 .PHONY: test
 test:
@@ -76,3 +72,29 @@ swagger-editor:
 .PHONY: accrual-start
 accrual-start:
 	./cmd/accrual/accrual_darwin_amd64 -d "postgresql://gophermart:gophermart@localhost:5432/gophermart_db?sslmode=disable" -a localhost:8889
+
+
+.PHONY: yptestdbstart
+yptestdbstart:
+	docker run --rm \
+		--name=praktikum-db \
+		--expose 5433 \
+		-e POSTGRES_PASSWORD="postgres" \
+		-e POSTGRES_USER="postgres" \
+		-e POSTGRES_DB="praktikum" \
+		-d \
+		-p 5433:5432 \
+		postgres:15.3
+
+.PHONY: yptest
+yptest: build
+	./.yptest/gophermarttest \
+		-test.v -test.run=^TestGophermart$ \
+		-gophermart-binary-path=cmd/gophermart/gophermart \
+		-gophermart-host=localhost \
+		-gophermart-port=9991 \
+		-gophermart-database-uri="postgresql://postgres:postgres@localhost:5433/praktikum?sslmode=disable" \
+		-accrual-binary-path=cmd/accrual/accrual_darwin_amd64 \
+		-accrual-host=localhost \
+		-accrual-port=9990 \
+		-accrual-database-uri="postgresql://postgres:postgres@localhost:5433/praktikum?sslmode=disable" > ./.yptest/log.txt

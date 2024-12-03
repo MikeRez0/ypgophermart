@@ -44,8 +44,10 @@ func NewRouter(
 				balance.Use(authCheck(tokenService, log))
 				balance.GET("", balanceHandler.UserBalance)
 				balance.POST("/withdraw", balanceHandler.Withdraw)
-				balance.GET("/withdrawals", balanceHandler.ListWithdrawals)
 			}
+
+			user.Use((authCheck(tokenService, log))).
+				GET("/withdrawals", balanceHandler.ListWithdrawals)
 		}
 	}
 
