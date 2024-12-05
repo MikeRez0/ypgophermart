@@ -6,6 +6,7 @@ import (
 	"github.com/MikeRez0/ypgophermart/internal/core/domain"
 )
 
+//go:generate mockgen -source=repository.go -destination=mock/repository.go -package=mock
 type Repository interface {
 	// User
 	CreateUser(ctx context.Context, user *domain.User) (*domain.User, error)

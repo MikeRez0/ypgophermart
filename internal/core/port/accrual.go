@@ -7,6 +7,7 @@ import (
 	"github.com/govalues/decimal"
 )
 
+//go:generate mockgen -source=accrual.go -destination=mock/accrual.go -package=mock
 type AccrualServiceClient interface {
 	ScheduleOrderAccrual(orderNumber domain.OrderNumber)
 }
