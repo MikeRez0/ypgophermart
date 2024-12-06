@@ -3,7 +3,6 @@ package http
 import (
 	"github.com/MikeRez0/ypgophermart/internal/core/domain"
 	"github.com/MikeRez0/ypgophermart/internal/core/port"
-	"github.com/MikeRez0/ypgophermart/internal/core/utils"
 	"github.com/gin-gonic/gin"
 	"go.uber.org/zap"
 )
@@ -31,14 +30,6 @@ func (uh *UserHandler) RegisterUser(ctx *gin.Context) {
 		uh.handleValidationError(ctx, err)
 		return
 	}
-
-	// Hash password
-	hashed, err := utils.HashPassword(userReq.Password)
-	if err != nil {
-		uh.handleError(ctx, domain.ErrInternal)
-		return
-	}
-	userReq.Password = hashed
 
 	user := &domain.User{
 		Login:    userReq.Login,

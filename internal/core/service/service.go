@@ -41,6 +41,14 @@ func (s *Service) RegisterUser(ctx context.Context, user *domain.User) (*domain.
 		return nil, domain.ErrConflictingData
 	}
 
+	// Hash password
+	hashed, err := utils.HashPassword(user.Password)
+	if err != nil {
+		s.logger.Error("Hash password", zap.Error(err))
+		return nil, domain.ErrInternal
+	}
+	user.Password = hashed
+
 	newUser, err := s.repo.CreateUser(ctx, user)
 	if err != nil {
 		s.logger.Error("Create user", zap.Error(err))
