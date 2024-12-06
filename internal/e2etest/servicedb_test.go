@@ -22,11 +22,11 @@ import (
 	"go.uber.org/zap"
 )
 
-var dbtest *testdb.TestDbInstance
+var dbtest *testdb.TestDBInstance
 
 func setup() {
 	var err error
-	dbtest, err = testdb.NewTestDbInstance()
+	dbtest, err = testdb.NewTestDBInstance()
 	if err != nil {
 		log.Fatal(err)
 	}

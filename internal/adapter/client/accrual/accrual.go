@@ -17,9 +17,9 @@ import (
 )
 
 type AccrualClient struct {
+	orderQueue chan domain.OrderNumber
 	logger     *zap.Logger
 	host       string
-	orderQueue chan domain.OrderNumber
 }
 
 func NewAccrualClient(cfg *config.Accrual, log *zap.Logger) (*AccrualClient, error) {
@@ -32,17 +32,16 @@ func NewAccrualClient(cfg *config.Accrual, log *zap.Logger) (*AccrualClient, err
 
 type accrualResponse struct {
 	Status  string  `json:"status"`
-	Accrual float64 `json:"accrual"`
 	Order   string  `json:"order"`
+	Accrual float64 `json:"accrual"`
 }
 
-type errAccrualRequest struct {
-	error
+type accrualRequestError struct {
 	NeedSleep  bool
 	RetryAfter time.Duration
 }
 
-func (e *errAccrualRequest) Error() string {
+func (e *accrualRequestError) Error() string {
 	return fmt.Sprintf("Too Many Requests. Retry-After: %s", e.RetryAfter)
 }
 
@@ -75,7 +74,7 @@ func (c *AccrualClient) ScheduleAccrualService(ctx context.Context, updater port
 
 					accrualStatus, err := c.requestAccrual(orderNumber)
 					if err != nil {
-						if e, ok := err.(*errAccrualRequest); ok {
+						if e, ok := err.(*accrualRequestError); ok {
 							c.logger.Debug("Need wait for retry for order accrual",
 								zap.String("order", string(orderNumber)),
 								zap.Bool("NeedPause", e.NeedSleep),
@@ -137,7 +136,6 @@ func (c *AccrualClient) retryRequest(ctx context.Context, orderNumber domain.Ord
 	case <-ctx.Done():
 		c.logger.Debug("Canceled retry")
 	}
-
 }
 
 func (c *AccrualClient) requestAccrual(orderNumber domain.OrderNumber) (*orderAccrualStatus, error) {
@@ -157,18 +155,18 @@ func (c *AccrualClient) requestAccrual(orderNumber domain.OrderNumber) (*orderAc
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		if resp.StatusCode == http.StatusTooManyRequests {
-			var retryAfter time.Duration
+			var retryAfter int
 			sec, err := strconv.Atoi(resp.Header.Get("Retry-After"))
 			if err != nil {
-				retryAfter = time.Duration(10)
+				retryAfter = 10
 			} else {
-				retryAfter = time.Duration(sec)
+				retryAfter = sec
 			}
 			// too many requests, sleep for Retry-after seconds
-			return nil, &errAccrualRequest{RetryAfter: retryAfter * time.Second, NeedSleep: true}
+			return nil, &accrualRequestError{RetryAfter: time.Duration(retryAfter) * time.Second, NeedSleep: true}
 		} else if resp.StatusCode == http.StatusNoContent {
 			// Order not registered, wait 10 sec
-			return nil, &errAccrualRequest{RetryAfter: 10 * time.Second}
+			return nil, &accrualRequestError{RetryAfter: 10 * time.Second}
 		}
 		c.logger.Error("unexpected status for request",
 			zap.String("order", string(orderNumber)), zap.Int("status", resp.StatusCode))

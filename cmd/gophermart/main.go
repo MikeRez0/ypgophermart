@@ -58,19 +58,19 @@ func main() {
 		return
 	}
 
-	accrual, err := accrual.NewAccrualClient(conf.Accrual, log.Named("Accrual"))
+	accrualClient, err := accrual.NewAccrualClient(conf.Accrual, log.Named("Accrual"))
 	if err != nil {
 		log.Error("accrual client creating error", zap.Error(err))
 		return
 	}
 
-	svc, err := service.NewService(repo, tokenService, accrual, log.Named("Service"))
+	svc, err := service.NewService(repo, tokenService, accrualClient, log.Named("Service"))
 	if err != nil {
 		log.Error("order service creating error", zap.Error(err))
 		return
 	}
 
-	accrual.ScheduleAccrualService(ctx, svc, 5)
+	accrualClient.ScheduleAccrualService(ctx, svc, 5)
 
 	userHandler, err := http.NewUserHandler(svc, log.Named("User handler"))
 	if err != nil {

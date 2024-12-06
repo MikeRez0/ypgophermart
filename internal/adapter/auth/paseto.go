@@ -15,7 +15,6 @@ type PasetoToken struct {
 }
 
 func New() (port.TokenService, error) {
-
 	parser := paseto.NewParser()
 	key := paseto.NewV4SymmetricKey()
 	token := paseto.NewToken()

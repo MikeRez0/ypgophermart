@@ -17,14 +17,13 @@ const (
 	testUserPassword = "test"
 )
 
-type TestDbInstance struct {
+type TestDBInstance struct {
 	dockerPool *dockertest.Pool
 	dbResource *dockertest.Resource
 	DSN        string
 }
 
-func NewTestDbInstance() (*TestDbInstance, error) {
-
+func NewTestDBInstance() (*TestDBInstance, error) {
 	pool, err := dockertest.NewPool("")
 	if err != nil {
 		return nil, fmt.Errorf("failed to initialize a pool: %w", err)
@@ -41,7 +40,7 @@ func NewTestDbInstance() (*TestDbInstance, error) {
 			},
 			ExposedPorts: []string{"5432"},
 			PortBindings: map[docker.Port][]docker.PortBinding{
-				docker.Port("5432"): []docker.PortBinding{docker.PortBinding{HostPort: "50000"}},
+				docker.Port("5432"): {docker.PortBinding{HostPort: "50000"}},
 			},
 		},
 		func(config *docker.HostConfig) {
@@ -65,7 +64,8 @@ func NewTestDbInstance() (*TestDbInstance, error) {
 	pool.MaxWait = 10 * time.Second
 	var connSU *pgx.Conn
 	err = pool.Retry(func() error {
-		connSU, err = pgx.Connect(context.Background(), fmt.Sprintf("postgres://postgres:postgres@%s/postgres?sslmode=disable", hostPort))
+		connSU, err = pgx.Connect(context.Background(),
+			fmt.Sprintf("postgres://postgres:postgres@%s/postgres?sslmode=disable", hostPort))
 		if err != nil {
 			return fmt.Errorf("failed to get a super user connection: %w", err)
 		}
@@ -80,15 +80,16 @@ func NewTestDbInstance() (*TestDbInstance, error) {
 		return nil, fmt.Errorf("failed to create db: %w", err)
 	}
 
-	t := TestDbInstance{
+	t := TestDBInstance{
 		dockerPool: pool,
 		dbResource: pg,
-		DSN:        fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable", testUserName, testUserPassword, hostPort, testDBName),
+		DSN: fmt.Sprintf("postgres://%s:%s@%s/%s?sslmode=disable",
+			testUserName, testUserPassword, hostPort, testDBName),
 	}
 	return &t, nil
 }
 
-func (t *TestDbInstance) Down() {
+func (t *TestDBInstance) Down() {
 	if err1 := t.dockerPool.Purge(t.dbResource); err1 != nil {
 		log.Printf("failed to purge the postgres container: %v", err1)
 	}
