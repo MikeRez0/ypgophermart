@@ -321,6 +321,8 @@ func TestServiceDb_AccrualWithdrawal(t *testing.T) {
 			var result *domain.Balance
 			if test.accrual {
 				_, err = s.CreateOrder(ctx, &domain.Order{Number: test.orderNumber, UserID: user.ID})
+				assert.NoError(t, err)
+
 				result, err = s.Accrual(ctx, user.ID, test.orderNumber, test.amount)
 			} else {
 				result, err = s.Withdrawal(ctx, user.ID, test.orderNumber, test.amount)

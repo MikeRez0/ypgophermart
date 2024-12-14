@@ -48,12 +48,12 @@ func (r *Repository) insertOrder(ctx context.Context, tx queryAble, order *domai
 	return order, nil
 }
 
-func (or *Repository) CreateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
-	return or.insertOrder(ctx, or.db.Pool, order)
+func (r *Repository) CreateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
+	return r.insertOrder(ctx, r.db.Pool, order)
 }
 
-func (or *Repository) selectOrder(ctx context.Context, tx queryAble, orderID domain.OrderNumber, forUpdate bool) (*domain.Order, error) {
-	statement := or.db.QueryBuilder.
+func (r *Repository) selectOrder(ctx context.Context, tx queryAble, orderID domain.OrderNumber, forUpdate bool) (*domain.Order, error) {
+	statement := r.db.QueryBuilder.
 		Select("user_id", "number", "accrual", "withdrawal", "status", "uploaded_at").
 		From("orders").
 		Where(sq.Eq{"number": orderID})
@@ -86,12 +86,12 @@ func (or *Repository) selectOrder(ctx context.Context, tx queryAble, orderID dom
 	return &order, nil
 }
 
-func (or *Repository) ReadOrder(ctx context.Context, orderID domain.OrderNumber) (*domain.Order, error) {
-	return or.selectOrder(ctx, or.db.Pool, orderID, false)
+func (r *Repository) ReadOrder(ctx context.Context, orderID domain.OrderNumber) (*domain.Order, error) {
+	return r.selectOrder(ctx, r.db.Pool, orderID, false)
 }
 
-func (or *Repository) updateOrder(ctx context.Context, tx queryAble, order *domain.Order) (*domain.Order, error) {
-	orderSt := or.db.QueryBuilder.
+func (r *Repository) updateOrder(ctx context.Context, tx queryAble, order *domain.Order) (*domain.Order, error) {
+	orderSt := r.db.QueryBuilder.
 		Update("orders").
 		Set("accrual", order.Accrual).
 		Set("withdrawal", order.Withdrawal).
@@ -110,8 +110,8 @@ func (or *Repository) updateOrder(ctx context.Context, tx queryAble, order *doma
 
 	return order, nil
 }
-func (or *Repository) UpdateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
-	return or.updateOrder(ctx, or.db.Pool, order)
+func (r *Repository) UpdateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
+	return r.updateOrder(ctx, r.db.Pool, order)
 }
 
 func (r *Repository) listOrders(ctx context.Context, tx queryAble,
@@ -168,17 +168,17 @@ func (r *Repository) listOrders(ctx context.Context, tx queryAble,
 	return list, nil
 }
 
-func (or *Repository) ListOrdersByUser(ctx context.Context, userID uint64) ([]*domain.Order, error) {
-	return or.listOrders(ctx, or.db.Pool, userID, nil)
+func (r *Repository) ListOrdersByUser(ctx context.Context, userID uint64) ([]*domain.Order, error) {
+	return r.listOrders(ctx, r.db.Pool, userID, nil)
 }
-func (or *Repository) ListOrdersByStatus(ctx context.Context,
+func (r *Repository) ListOrdersByStatus(ctx context.Context,
 	statusList []domain.OrderStatus) ([]*domain.Order, error) {
-	return or.listOrders(ctx, or.db.Pool, 0, statusList)
+	return r.listOrders(ctx, r.db.Pool, 0, statusList)
 }
 
-func (or *Repository) CreateUser(ctx context.Context, user *domain.User) (*domain.User, error) {
-	err := pgx.BeginFunc(ctx, or.db, func(tx pgx.Tx) error {
-		userSt := or.db.QueryBuilder.
+func (r *Repository) CreateUser(ctx context.Context, user *domain.User) (*domain.User, error) {
+	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		userSt := r.db.QueryBuilder.
 			Insert("users").
 			Columns("login", "password").
 			Values(user.Login, user.Password).
@@ -194,7 +194,7 @@ func (or *Repository) CreateUser(ctx context.Context, user *domain.User) (*domai
 			return err
 		}
 
-		balanceSt := or.db.QueryBuilder.
+		balanceSt := r.db.QueryBuilder.
 			Insert("balance").
 			Columns("user_id", "current", "withdrawn").
 			Values(user.ID, decimal.Zero, decimal.Zero)
@@ -222,8 +222,8 @@ func (or *Repository) CreateUser(ctx context.Context, user *domain.User) (*domai
 	return user, nil
 }
 
-func (or *Repository) selectUser(ctx context.Context, tx queryAble, login string, forUpdate bool) (*domain.User, error) {
-	statement := or.db.QueryBuilder.
+func (r *Repository) selectUser(ctx context.Context, tx queryAble, login string, forUpdate bool) (*domain.User, error) {
+	statement := r.db.QueryBuilder.
 		Select("id", "login", "password").
 		From("users").
 		Where(sq.Eq{"login": login})
@@ -254,12 +254,12 @@ func (or *Repository) selectUser(ctx context.Context, tx queryAble, login string
 	return &user, nil
 }
 
-func (or *Repository) GetUserByLogin(ctx context.Context, login string) (*domain.User, error) {
-	return or.selectUser(ctx, or.db.Pool, login, false)
+func (r *Repository) GetUserByLogin(ctx context.Context, login string) (*domain.User, error) {
+	return r.selectUser(ctx, r.db.Pool, login, false)
 }
 
-func (or *Repository) selectBalanceByUserID(ctx context.Context, tx queryAble, userID uint64, forUpdate bool) (*domain.Balance, error) {
-	statement := or.db.QueryBuilder.
+func (r *Repository) selectBalanceByUserID(ctx context.Context, tx queryAble, userID uint64, forUpdate bool) (*domain.Balance, error) {
+	statement := r.db.QueryBuilder.
 		Select("user_id", "current", "withdrawn").
 		From("balance").
 		Where(sq.Eq{"user_id": userID})
@@ -289,10 +289,10 @@ func (or *Repository) selectBalanceByUserID(ctx context.Context, tx queryAble, u
 	return &balance, nil
 }
 
-func (or *Repository) ReadBalanceByUserID(ctx context.Context, userID uint64) (*domain.Balance, error) {
-	return or.selectBalanceByUserID(ctx, or.db.Pool, userID, false)
+func (r *Repository) ReadBalanceByUserID(ctx context.Context, userID uint64) (*domain.Balance, error) {
+	return r.selectBalanceByUserID(ctx, r.db.Pool, userID, false)
 }
-func (or *Repository) UpdateUserBalanceByOrder(ctx context.Context,
+func (r *Repository) UpdateUserBalanceByOrder(ctx context.Context,
 	order *domain.Order, isNewOrder bool, updateFn port.UpdateBalanceFn) (*domain.Balance, error) {
 
 	if order == nil {
@@ -300,19 +300,19 @@ func (or *Repository) UpdateUserBalanceByOrder(ctx context.Context,
 
 	}
 
-	err := pgx.BeginFunc(ctx, or.db, func(tx pgx.Tx) error {
-		balance, err := or.selectBalanceByUserID(ctx, tx, order.UserID, true)
+	err := pgx.BeginFunc(ctx, r.db, func(tx pgx.Tx) error {
+		balance, err := r.selectBalanceByUserID(ctx, tx, order.UserID, true)
 		if err != nil {
 			return err
 		}
 
 		if isNewOrder {
-			order, err = or.insertOrder(ctx, tx, order)
+			order, err = r.insertOrder(ctx, tx, order)
 			if err != nil {
 				return err
 			}
 		} else {
-			order, err = or.selectOrder(ctx, tx, order.Number, true)
+			order, err = r.selectOrder(ctx, tx, order.Number, true)
 			if err != nil {
 				return err
 			}
@@ -323,12 +323,12 @@ func (or *Repository) UpdateUserBalanceByOrder(ctx context.Context,
 			return err
 		}
 
-		_, err = or.updateOrder(ctx, tx, order)
+		_, err = r.updateOrder(ctx, tx, order)
 		if err != nil {
 			return err
 		}
 
-		balanceSt := or.db.QueryBuilder.
+		balanceSt := r.db.QueryBuilder.
 			Update("balance").
 			Set("current", balance.Current).
 			Set("withdrawn", balance.Withdrawn).
@@ -350,5 +350,5 @@ func (or *Repository) UpdateUserBalanceByOrder(ctx context.Context,
 		return nil, err
 	}
 
-	return or.selectBalanceByUserID(ctx, or.db.Pool, order.UserID, false)
+	return r.selectBalanceByUserID(ctx, r.db.Pool, order.UserID, false)
 }
