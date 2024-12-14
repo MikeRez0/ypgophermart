@@ -81,24 +81,32 @@ func (s *Service) LoginUser(ctx context.Context, login string, password string) 
 	return token, nil
 }
 
-func (s *Service) CreateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
+func (s *Service) checkNewOrder(ctx context.Context, order *domain.Order) error {
 	// check number format by Luna
 	err := utils.ValidateLuhn(string(order.Number))
 	if err != nil {
-		return nil, domain.ErrOrderBadNumber
+		return domain.ErrOrderBadNumber
 	}
-
 	// check existance
 	exOrder, err := s.repo.ReadOrder(ctx, order.Number)
 	if err != nil && (!errors.Is(err, domain.ErrDataNotFound)) {
-		return nil, err
+		return err
 	}
 	if exOrder != nil {
 		if exOrder.UserID == order.UserID {
-			return nil, domain.ErrOrderAlreadyAcceptedByUser
+			return domain.ErrOrderAlreadyAcceptedByUser
 		} else {
-			return nil, domain.ErrOrderAlreadyAcceptedBAnotherUser
+			return domain.ErrOrderAlreadyAcceptedBAnotherUser
 		}
+	}
+
+	return nil
+}
+
+func (s *Service) CreateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
+	err := s.checkNewOrder(ctx, order)
+	if err != nil {
+		return nil, err
 	}
 
 	// save
@@ -149,7 +157,7 @@ func (s *Service) Accrual(ctx context.Context,
 		return nil, err
 	}
 
-	balance, err := s.repo.UpdateUserBalanceByOrder(ctx, userID, order.Number,
+	balance, err := s.repo.UpdateUserBalanceByOrder(ctx, order, false,
 		func(b *domain.Balance, o *domain.Order) error {
 			newAmount, err := b.Current.Add(amount)
 			if err != nil {
@@ -172,15 +180,20 @@ func (s *Service) Withdrawal(ctx context.Context,
 	orderID domain.OrderNumber,
 	amount decimal.Decimal,
 ) (*domain.Balance, error) {
-	order, err := s.repo.ReadOrder(ctx, orderID)
+
+	order := &domain.Order{
+		Number:     orderID,
+		UserID:     userID,
+		Status:     domain.OrderStatusNew,
+		UploadedAt: time.Now(),
+	}
+
+	err := s.checkNewOrder(ctx, order)
 	if err != nil {
-		if errors.Is(err, domain.ErrDataNotFound) {
-			return nil, domain.ErrOrderBadNumber
-		}
 		return nil, err
 	}
 
-	balance, err := s.repo.UpdateUserBalanceByOrder(ctx, userID, order.Number,
+	balance, err := s.repo.UpdateUserBalanceByOrder(ctx, order, true,
 		func(b *domain.Balance, o *domain.Order) error {
 			if b.Current.Cmp(amount) < 0 {
 				return domain.ErrInsufficientBalance

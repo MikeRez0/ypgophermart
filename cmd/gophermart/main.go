@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/MikeRez0/ypgophermart/internal/adapter/auth"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/client/accrual"
@@ -71,6 +72,15 @@ func main() {
 	}
 
 	accrualClient.ScheduleAccrualService(ctx, svc, 5)
+
+	go func() {
+		// wait after start
+		<-time.After(2 * time.Second)
+		err := accrual.RecallOrders(ctx, repo, accrualClient)
+		if err != nil {
+			log.Error("recall orders error", zap.Error(err))
+		}
+	}()
 
 	userHandler, err := http.NewUserHandler(svc, log.Named("User handler"))
 	if err != nil {

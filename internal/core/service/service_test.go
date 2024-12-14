@@ -285,8 +285,7 @@ func TestService_AccrualWithdrawal(t *testing.T) {
 				repo.EXPECT().ReadOrder(gomock.Any(), order.Number).
 					Return(&order, nil)
 				repo.EXPECT().UpdateUserBalanceByOrder(context.Background(),
-					order.UserID,
-					order.Number,
+					gomock.Any(), false,
 					gomock.Any(),
 				).Return(&balance, nil)
 			},
@@ -301,10 +300,9 @@ func TestService_AccrualWithdrawal(t *testing.T) {
 			accrual: false,
 			mock: func(repo *mock.MockRepository, accrual *mock.MockAccrualServiceClient) {
 				repo.EXPECT().ReadOrder(gomock.Any(), order.Number).
-					Return(&order, nil)
+					Return(nil, domain.ErrDataNotFound)
 				repo.EXPECT().UpdateUserBalanceByOrder(context.Background(),
-					order.UserID,
-					order.Number,
+					gomock.Any(), true,
 					gomock.Any(),
 				).Return(&balance, nil)
 			},
@@ -319,10 +317,9 @@ func TestService_AccrualWithdrawal(t *testing.T) {
 			accrual: false,
 			mock: func(repo *mock.MockRepository, accrual *mock.MockAccrualServiceClient) {
 				repo.EXPECT().ReadOrder(gomock.Any(), order.Number).
-					Return(&order, nil)
+					Return(nil, domain.ErrDataNotFound)
 				repo.EXPECT().UpdateUserBalanceByOrder(context.Background(),
-					order.UserID,
-					order.Number,
+					gomock.Any(), true,
 					gomock.Any(),
 				).Return(nil, domain.ErrInsufficientBalance)
 			},

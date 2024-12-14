@@ -192,18 +192,17 @@ func (c *AccrualClient) requestAccrual(orderNumber domain.OrderNumber) (*orderAc
 
 func (c *AccrualClient) processOrder(ctx context.Context, status *orderAccrualStatus,
 	orderAccrualUpdater port.OrderAccrualUpdater) (bool, error) {
-	if status.Status == "PROCESSED" {
+	switch status.Status {
+	case "PROCESSED":
 		err := orderAccrualUpdater.AccrualOrder(ctx, status.OrderNumber, status.Accrual)
 		if err != nil {
 			c.logger.Error("accrual order error", zap.Error(err))
 			return true, err
 		}
 		return false, nil
-	}
-
-	if status.Status == "INVALID" {
+	case "INVALID":
 		return false, orderAccrualUpdater.UpdateOrderStatus(ctx, status.OrderNumber, domain.OrderStatusInvalid)
-	} else {
+	default:
 		return true, orderAccrualUpdater.UpdateOrderStatus(ctx, status.OrderNumber, domain.OrderStatusProcessing)
 	}
 }

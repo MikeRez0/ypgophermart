@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	sq "github.com/Masterminds/squirrel"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/storage"
@@ -27,8 +28,8 @@ func NewRepository(db *storage.DB) (*Repository, error) {
 	return &Repository{db: db}, nil
 }
 
-func (or *Repository) CreateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
-	statement := or.db.QueryBuilder.Insert("orders").
+func (r *Repository) insertOrder(ctx context.Context, tx queryAble, order *domain.Order) (*domain.Order, error) {
+	statement := r.db.QueryBuilder.Insert("orders").
 		Columns("user_id", "number", "accrual", "withdrawal", "status", "uploaded_at").
 		Values(order.UserID, order.Number, order.Accrual, order.Withdrawal, order.Status, order.UploadedAt)
 
@@ -37,7 +38,7 @@ func (or *Repository) CreateOrder(ctx context.Context, order *domain.Order) (*do
 		return nil, err
 	}
 
-	_, err = or.db.Pool.Exec(ctx, sql, args...)
+	_, err = tx.Exec(ctx, sql, args...)
 	if err != nil {
 		if pgErr, ok := err.(*pgconn.PgError); ok && pgErr.Code == pgerrcode.UniqueViolation {
 			return nil, domain.ErrConflictingData
@@ -45,6 +46,10 @@ func (or *Repository) CreateOrder(ctx context.Context, order *domain.Order) (*do
 		return nil, err
 	}
 	return order, nil
+}
+
+func (or *Repository) CreateOrder(ctx context.Context, order *domain.Order) (*domain.Order, error) {
+	return or.insertOrder(ctx, or.db.Pool, order)
 }
 
 func (or *Repository) selectOrder(ctx context.Context, tx queryAble, orderID domain.OrderNumber, forUpdate bool) (*domain.Order, error) {
@@ -109,21 +114,30 @@ func (or *Repository) UpdateOrder(ctx context.Context, order *domain.Order) (*do
 	return or.updateOrder(ctx, or.db.Pool, order)
 }
 
-func (or *Repository) ListOrdersByUser(ctx context.Context, userID uint64) ([]*domain.Order, error) {
-	statement := or.db.QueryBuilder.
+func (r *Repository) listOrders(ctx context.Context, tx queryAble,
+	userID uint64, statusList []domain.OrderStatus) ([]*domain.Order, error) {
+	statement := r.db.QueryBuilder.
 		Select("user_id", "number", "accrual", "withdrawal", "status", "uploaded_at").
-		From("orders").
-		Where(sq.Eq{"user_id": userID}).
-		OrderBy("uploaded_at desc")
+		From("orders")
+
+	if userID != 0 {
+		statement = statement.Where(sq.Eq{"user_id": userID})
+	}
+
+	if len(statusList) > 0 {
+		statement = statement.Where(sq.Eq{"status": statusList})
+	}
+
+	statement = statement.OrderBy("uploaded_at desc")
 
 	sql, args, err := statement.ToSql()
 	if err != nil {
 		return nil, err
 	}
 
-	rows, err := or.db.Query(ctx, sql, args...)
+	rows, err := tx.Query(ctx, sql, args...)
 	if err != nil {
-		if err == pgx.ErrNoRows {
+		if errors.Is(err, pgx.ErrNoRows) {
 			return nil, domain.ErrDataNotFound
 		}
 		return nil, err
@@ -153,8 +167,13 @@ func (or *Repository) ListOrdersByUser(ctx context.Context, userID uint64) ([]*d
 
 	return list, nil
 }
-func (or *Repository) ListOrdersByStatus(ctx context.Context, status domain.OrderStatus) ([]*domain.Order, error) {
-	return nil, nil
+
+func (or *Repository) ListOrdersByUser(ctx context.Context, userID uint64) ([]*domain.Order, error) {
+	return or.listOrders(ctx, or.db.Pool, userID, nil)
+}
+func (or *Repository) ListOrdersByStatus(ctx context.Context,
+	statusList []domain.OrderStatus) ([]*domain.Order, error) {
+	return or.listOrders(ctx, or.db.Pool, 0, statusList)
 }
 
 func (or *Repository) CreateUser(ctx context.Context, user *domain.User) (*domain.User, error) {
@@ -274,16 +293,29 @@ func (or *Repository) ReadBalanceByUserID(ctx context.Context, userID uint64) (*
 	return or.selectBalanceByUserID(ctx, or.db.Pool, userID, false)
 }
 func (or *Repository) UpdateUserBalanceByOrder(ctx context.Context,
-	userID uint64, orderNumber domain.OrderNumber, updateFn port.UpdateBalanceFn) (*domain.Balance, error) {
+	order *domain.Order, isNewOrder bool, updateFn port.UpdateBalanceFn) (*domain.Balance, error) {
+
+	if order == nil {
+		return nil, domain.ErrBadRequest
+
+	}
+
 	err := pgx.BeginFunc(ctx, or.db, func(tx pgx.Tx) error {
-		balance, err := or.selectBalanceByUserID(ctx, tx, userID, true)
+		balance, err := or.selectBalanceByUserID(ctx, tx, order.UserID, true)
 		if err != nil {
 			return err
 		}
 
-		order, err := or.selectOrder(ctx, tx, orderNumber, true)
-		if err != nil {
-			return err
+		if isNewOrder {
+			order, err = or.insertOrder(ctx, tx, order)
+			if err != nil {
+				return err
+			}
+		} else {
+			order, err = or.selectOrder(ctx, tx, order.Number, true)
+			if err != nil {
+				return err
+			}
 		}
 
 		err = updateFn(balance, order)
@@ -318,5 +350,5 @@ func (or *Repository) UpdateUserBalanceByOrder(ctx context.Context,
 		return nil, err
 	}
 
-	return or.selectBalanceByUserID(ctx, or.db.Pool, userID, false)
+	return or.selectBalanceByUserID(ctx, or.db.Pool, order.UserID, false)
 }

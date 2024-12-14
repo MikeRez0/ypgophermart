@@ -62,14 +62,7 @@ func (bh *BalanceHandler) Withdraw(ctx *gin.Context) {
 		return
 	}
 
-	order := &domain.Order{UserID: userID, Number: domain.OrderNumber(req.Order)}
-	order, err = bh.service.CreateOrder(ctx, order)
-	if err != nil {
-		bh.handleError(ctx, err)
-		return
-	}
-
-	balance, err := bh.service.Withdrawal(ctx, order.UserID, order.Number, amount)
+	balance, err := bh.service.Withdrawal(ctx, userID, domain.OrderNumber(req.Order), amount)
 	if err != nil {
 		bh.handleError(ctx, err)
 		return

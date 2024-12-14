@@ -6,9 +6,11 @@ import (
 	"log"
 	"os"
 	"testing"
+	"time"
 
 	"github.com/MikeRez0/ypgophermart/internal/adapter/auth"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/config"
+	"github.com/MikeRez0/ypgophermart/internal/adapter/logger"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/storage"
 	"github.com/MikeRez0/ypgophermart/internal/adapter/storage/repository"
 	"github.com/MikeRez0/ypgophermart/internal/core/domain"
@@ -252,14 +254,15 @@ func TestServiceDB_CreateOrder(t *testing.T) {
 func TestServiceDb_AccrualWithdrawal(t *testing.T) {
 	mockCtrl := gomock.NewController(t)
 	defer mockCtrl.Finish()
-	logger, _ := zap.NewProduction()
+
+	l := logger.NewLogger(&config.App{LogLevel: "debug"})
+	assert.NotNil(t, l)
 
 	type accrualWithdrawalTest struct {
 		name        string
 		orderNumber domain.OrderNumber
 		amount      decimal.Decimal
 		accrual     bool
-		mock        func(as *mock.MockAccrualServiceClient)
 		expError    error
 		expResult   domain.Balance
 	}
@@ -267,7 +270,7 @@ func TestServiceDb_AccrualWithdrawal(t *testing.T) {
 	tests := []accrualWithdrawalTest{
 		{
 			name:        "accrual success",
-			orderNumber: domain.OrderNumber("125"),
+			orderNumber: domain.OrderNumber("2377225624"),
 			amount:      decimal.Hundred,
 			accrual:     true,
 			expError:    nil,
@@ -296,20 +299,31 @@ func TestServiceDb_AccrualWithdrawal(t *testing.T) {
 	accrual := mock.NewMockAccrualServiceClient(mockCtrl)
 	accrual.EXPECT().ScheduleOrderAccrual(gomock.Any())
 
-	s, err := service.NewService(repo, ts, accrual, logger)
+	s, err := service.NewService(repo, ts, accrual, l)
 	assert.NoError(t, err)
 
 	user, err := s.RegisterUser(context.Background(), &domain.User{Login: "balance", Password: "test"})
 	assert.NoError(t, err)
 
+	l.Debug("Created user", zap.Any("user", user))
+
+	ctx := context.Background()
 	for _, test := range tests {
 		t.Run(test.name, func(t *testing.T) {
-			_, err = s.CreateOrder(context.Background(), &domain.Order{Number: test.orderNumber, UserID: user.ID})
+			ctx, cancel := context.WithCancel(ctx)
+			defer cancel()
+
+			l.Debug(test.name+" start", zap.Time("now", time.Now()))
+			b, err := s.GetUserBalance(ctx, user.ID)
+			assert.NoError(t, err)
+			l.Debug(test.name+" balance >", zap.Any("balance", b))
+
 			var result *domain.Balance
 			if test.accrual {
-				result, err = s.Accrual(context.Background(), user.ID, test.orderNumber, test.amount)
+				_, err = s.CreateOrder(ctx, &domain.Order{Number: test.orderNumber, UserID: user.ID})
+				result, err = s.Accrual(ctx, user.ID, test.orderNumber, test.amount)
 			} else {
-				result, err = s.Withdrawal(context.Background(), user.ID, test.orderNumber, test.amount)
+				result, err = s.Withdrawal(ctx, user.ID, test.orderNumber, test.amount)
 			}
 
 			if result != nil {
@@ -321,6 +335,8 @@ func TestServiceDb_AccrualWithdrawal(t *testing.T) {
 					fmt.Sprintf("actual: %v", result))
 			}
 			assert.Equal(t, test.expError, err)
+			l.Debug(test.name+" balance <", zap.Any("balance", result))
+			l.Debug(test.name+" finished", zap.Time("now", time.Now()))
 		})
 	}
 }

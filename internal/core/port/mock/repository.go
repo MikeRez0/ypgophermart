@@ -82,18 +82,18 @@ func (mr *MockRepositoryMockRecorder) GetUserByLogin(ctx, login interface{}) *go
 }
 
 // ListOrdersByStatus mocks base method.
-func (m *MockRepository) ListOrdersByStatus(ctx context.Context, status domain.OrderStatus) ([]*domain.Order, error) {
+func (m *MockRepository) ListOrdersByStatus(ctx context.Context, statusList []domain.OrderStatus) ([]*domain.Order, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "ListOrdersByStatus", ctx, status)
+	ret := m.ctrl.Call(m, "ListOrdersByStatus", ctx, statusList)
 	ret0, _ := ret[0].([]*domain.Order)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // ListOrdersByStatus indicates an expected call of ListOrdersByStatus.
-func (mr *MockRepositoryMockRecorder) ListOrdersByStatus(ctx, status interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) ListOrdersByStatus(ctx, statusList interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOrdersByStatus", reflect.TypeOf((*MockRepository)(nil).ListOrdersByStatus), ctx, status)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "ListOrdersByStatus", reflect.TypeOf((*MockRepository)(nil).ListOrdersByStatus), ctx, statusList)
 }
 
 // ListOrdersByUser mocks base method.
@@ -157,16 +157,16 @@ func (mr *MockRepositoryMockRecorder) UpdateOrder(ctx, order interface{}) *gomoc
 }
 
 // UpdateUserBalanceByOrder mocks base method.
-func (m *MockRepository) UpdateUserBalanceByOrder(ctx context.Context, userID uint64, orderNumber domain.OrderNumber, updateFn port.UpdateBalanceFn) (*domain.Balance, error) {
+func (m *MockRepository) UpdateUserBalanceByOrder(ctx context.Context, order *domain.Order, isNewOrder bool, updateFn port.UpdateBalanceFn) (*domain.Balance, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "UpdateUserBalanceByOrder", ctx, userID, orderNumber, updateFn)
+	ret := m.ctrl.Call(m, "UpdateUserBalanceByOrder", ctx, order, isNewOrder, updateFn)
 	ret0, _ := ret[0].(*domain.Balance)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // UpdateUserBalanceByOrder indicates an expected call of UpdateUserBalanceByOrder.
-func (mr *MockRepositoryMockRecorder) UpdateUserBalanceByOrder(ctx, userID, orderNumber, updateFn interface{}) *gomock.Call {
+func (mr *MockRepositoryMockRecorder) UpdateUserBalanceByOrder(ctx, order, isNewOrder, updateFn interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserBalanceByOrder", reflect.TypeOf((*MockRepository)(nil).UpdateUserBalanceByOrder), ctx, userID, orderNumber, updateFn)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateUserBalanceByOrder", reflect.TypeOf((*MockRepository)(nil).UpdateUserBalanceByOrder), ctx, order, isNewOrder, updateFn)
 }
