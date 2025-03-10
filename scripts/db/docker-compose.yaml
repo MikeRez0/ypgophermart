@@ -1,0 +1,24 @@
+services:
+  db:
+    container_name: gophermart-db
+    image: postgres
+    # restart: always
+    expose:
+      - 5432
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./init/:/docker-entrypoint-initdb.d:ro
+      - gophermartpgdata:/var/lib/postgresql/data
+    # set shared memory limit when using docker-compose
+    shm_size: 128mb
+    environment:
+      POSTGRES_PASSWORD: testpass
+  # adminer:
+  #   image: adminer
+  #   restart: always
+  #   ports:
+  #     - 8080:8080
+
+volumes:
+  gophermartpgdata:
